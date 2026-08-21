@@ -1,10 +1,12 @@
+> **v4.1 배포 복구:** GitHub 웹 업로드로 `.github/workflows/deploy.yml`이 빠져 Pages가 갱신되지 않는 문제를 해결했습니다. `FIX_GITHUB_PAGES.cmd`를 실행하면 Cloudflare/D1은 건드리지 않고 workflow 권한·파일 업로드·Actions·실제 공개 버전까지 검증합니다.
+
 # 멀리멀리 (MulliMulli)
 
 **느리게, 멀리, 마음을 전하세요.**
 
-> **v4.0 UI 재구성**: 사용자 기준 시안에 맞춰 PC 화면을 `Hero + 우측 프로필`, `받는 사람/메시지 + 전달자 6개`, `D-Day/남은 시간/정확한 도착 예정`, `진행 중 여정 3열` 구조로 다시 만들었습니다. 모바일은 같은 정보를 한 열로 재배치합니다.
+> **v4.1 UI 재구성**: 사용자 기준 시안에 맞춰 PC 화면을 `Hero + 우측 프로필`, `받는 사람/메시지 + 전달자 6개`, `D-Day/남은 시간/정확한 도착 예정`, `진행 중 여정 3열` 구조로 다시 만들었습니다. 모바일은 같은 정보를 한 열로 재배치합니다.
 >
-> **배포 확인 방식도 변경**: GitHub에 파일이 올라간 것과 GitHub Pages가 새 버전으로 배포된 것은 별개입니다. 배포 후 `https://ko9ma7.github.io/mullimulli-web/version.txt`에서 **`MULLIMULLI 4.0.0`**이 보여야 실제 v4.0 페이지가 올라간 것입니다.
+> **배포 확인 방식도 변경**: GitHub에 파일이 올라간 것과 GitHub Pages가 새 버전으로 배포된 것은 별개입니다. 배포 후 `https://ko9ma7.github.io/mullimulli-web/version.txt`에서 **`MULLIMULLI 4.1.0`**이 보여야 실제 v4.1 페이지가 올라간 것입니다.
 
 멀리멀리는 메시지가 즉시 도착하지 않고, **발송 순간의 두 사용자 마지막 위치**, **선택한 전달자의 서비스 기준 속도**, **최소 대기시간**, **우회 계수**, **실패 확률**에 따라 실제 시간을 기다리는 메시지 웹서비스입니다.
 
@@ -382,7 +384,7 @@ Worker의 `ALLOWED_ORIGINS`에도 새 도메인 origin을 추가해야 합니다
 
 MIT License. 단, 서비스 운영 시 개인정보·위치정보·메시지 보관정책은 실제 운영 환경에 맞는 별도 약관과 개인정보처리방침을 준비해야 합니다.
 
-## v4.0 GitHub 업로드 자료
+## v4.1 GitHub 업로드 자료
 
 GitHub에 올릴 때 필요한 Repository Description, Website, Topics, Social Preview와 Actions Variable은 아래 파일에 정리되어 있습니다.
 
@@ -392,11 +394,11 @@ GITHUB_UPLOAD_GUIDE.md
 SITE_METADATA.md
 ```
 
-v4.0 UI 검증 결과:
+v4.1 UI 검증 결과:
 
 ```text
-qa/desktop-v4.0.png
-qa/mobile-v4.0.png
-qa/qa-report-v4.0.json
-qa/fidelity-ledger-v4.0.md
+qa/desktop-v4.1.png
+qa/mobile-v4.1.png
+qa/qa-report-v4.1.json
+qa/fidelity-ledger-v4.1.md
 ```

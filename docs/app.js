@@ -1,7 +1,7 @@
 const CONFIG = window.MULLIMULLI_CONFIG || {};
 const API_BASE = (CONFIG.apiBaseUrl || '').replace(/\/$/, '');
 const DEMO_SCALE = Math.max(1, Number(CONFIG.demoTimeAcceleration || 1));
-const BUILD_VERSION = CONFIG.buildVersion || '4.0.0';
+const BUILD_VERSION = CONFIG.buildVersion || '4.1.0';
 const STORE_KEY = 'mullimulli.demo.v2';
 const SESSION_KEY = 'mullimulli.session.v1';
 const THEME_KEY = 'mullimulli.theme.v1';
