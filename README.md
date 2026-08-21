@@ -1,7 +1,7 @@
-> **v3.7 온라인 배포/편지 활성화 수정**: 자동설정기가 Worker/D1만 만들고 원격 GitHub에 최신 프로젝트가 없으면 사이트가 계속 `로컬 데모`로 남던 문제를 수정했습니다. 이제 `SETUP_ONLINE.cmd`가 현재 프로젝트 전체와 `.github/workflows/deploy.yml`을 `ko9ma7/mullimulli-web`에 자동 업로드하고 Pages 배포 성공까지 확인합니다. 온라인 편지 버튼은 친구의 공개 `updatedAt` 값이 아니라 서버의 거리 계산 성공 여부를 기준으로 활성화되어, 위치 업데이트 시각을 비공개로 해도 정상 발송됩니다.
+> **v3.8 온라인 배포/편지 활성화 수정**: 자동설정기가 Worker/D1만 만들고 원격 GitHub에 최신 프로젝트가 없으면 사이트가 계속 `로컬 데모`로 남던 문제를 수정했습니다. 이제 `SETUP_ONLINE.cmd`가 현재 프로젝트 전체와 `.github/workflows/deploy.yml`을 `ko9ma7/mullimulli-web`에 자동 업로드하고 Pages 배포 성공까지 확인합니다. 온라인 편지 버튼은 친구의 공개 `updatedAt` 값이 아니라 서버의 거리 계산 성공 여부를 기준으로 활성화되어, 위치 업데이트 시각을 비공개로 해도 정상 발송됩니다.
 
 
-> **v3.7 Windows 자동설정 개선**: Wrangler 4.x가 JSON 출력을 캡처하는 명령을 비대화식 환경으로 판단해 `CLOUDFLARE_API_TOKEN`을 요구하는 경우가 있습니다. 자동설정기는 `wrangler auth token --json`으로 이미 승인된 OAuth 세션 토큰을 현재 프로세스에만 임시 전달해 이 오류를 자동 처리합니다. 토큰은 프로젝트 파일이나 GitHub에 저장하지 않습니다.
+> **v3.8 Windows 자동설정 개선**: Wrangler 4.x가 JSON 출력을 캡처하는 명령을 비대화식 환경으로 판단해 `CLOUDFLARE_API_TOKEN`을 요구하는 경우가 있습니다. 자동설정기는 `wrangler auth token --json`으로 이미 승인된 OAuth 세션 토큰을 현재 프로세스에만 임시 전달해 이 오류를 자동 처리합니다. 토큰은 프로젝트 파일이나 GitHub에 저장하지 않습니다.
 
 # 멀리멀리 (MulliMulli)
 
@@ -383,3 +383,22 @@ Worker의 `ALLOWED_ORIGINS`에도 새 도메인 origin을 추가해야 합니다
 ## License
 
 MIT License. 단, 서비스 운영 시 개인정보·위치정보·메시지 보관정책은 실제 운영 환경에 맞는 별도 약관과 개인정보처리방침을 준비해야 합니다.
+
+## v3.8 GitHub 업로드 자료
+
+GitHub에 올릴 때 필요한 Repository Description, Website, Topics, Social Preview와 Actions Variable은 아래 파일에 정리되어 있습니다.
+
+```text
+.github/REPOSITORY_SETUP.md
+GITHUB_UPLOAD_GUIDE.md
+SITE_METADATA.md
+```
+
+v3.8 UI 검증 결과:
+
+```text
+qa/desktop-v3.8.png
+qa/mobile-v3.8.png
+qa/qa-report-v3.8.json
+qa/fidelity-ledger-v3.8.md
+```

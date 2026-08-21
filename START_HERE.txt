@@ -1,11 +1,11 @@
-멀리멀리 v3.7 - 온라인 계정 자동 연결
+멀리멀리 v3.8 - 온라인 계정 자동 연결
 
 이 버전은 Worker/D1만 설정하고 끝나지 않습니다.
 SETUP_ONLINE.cmd가 최신 프로젝트(.github/workflows/deploy.yml 포함)를
 ko9ma7/mullimulli-web 저장소에 자동 업로드한 뒤 GitHub Pages 배포까지 기다립니다.
 
 1. ZIP을 새 폴더에 압축 해제
-   예: C:\worker\mullimulli-web-v3.7
+   예: C:\worker\mullimulli-web-v3.8
 2. SETUP_ONLINE.cmd 더블클릭
 3. Cloudflare/GitHub 브라우저 승인이 뜨면 승인
 4. 끝에 아래 문구가 나올 때까지 창을 닫지 않기
@@ -27,6 +27,6 @@ ko9ma7/mullimulli-web 저장소에 자동 업로드한 뒤 GitHub Pages 배포�
 3. 보내는 사람과 받는 사람 모두 "위치 업데이트"를 한 번 실행함
 4. 거리 확인이 성공함
 
-v3.7은 상대가 위치 업데이트 "시각"을 비공개로 해도 서버에서 거리 계산이 되면
+v3.8은 상대가 위치 업데이트 "시각"을 비공개로 해도 서버에서 거리 계산이 되면
 편지를 보낼 수 있도록 수정했습니다. 보내기 화면의 "거리/위치 다시 확인" 버튼으로
 상대가 방금 위치를 갱신한 상태를 즉시 다시 확인할 수 있습니다.

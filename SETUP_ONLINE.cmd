@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-title Mullimulli Online Setup v3.7
+title Mullimulli Online Setup v3.8
 
 where powershell.exe >nul 2>&1
 if errorlevel 1 (
@@ -17,7 +17,7 @@ if "%RESULT%"=="0" (
   echo Setup finished successfully.
 ) else (
   echo Setup stopped with an error.
-  echo Use only this v3.7 folder and run SETUP_ONLINE.cmd again after correcting the shown issue.
+  echo Use only this v3.8 folder and run SETUP_ONLINE.cmd again after correcting the shown issue.
 )
 echo.
 pause
