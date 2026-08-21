@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import readline from 'node:readline/promises';
 import process from 'node:process';
@@ -15,7 +16,7 @@ const configFile = join(root, 'docs', 'config.js');
 const stateFile = join(root, '.setup-online-state.json');
 const DB_NAME = 'mullimulli-db';
 const WORKER_NAME = 'mullimulli-api';
-const VERSION = '3.6.0';
+const VERSION = '3.7.0';
 const DEFAULT_GITHUB_REPO = 'ko9ma7/mullimulli-web';
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -343,41 +344,137 @@ function repoInfo(repo) {
   };
 }
 
+
+function git(args, opts = {}) {
+  const cmd = process.platform === 'win32' ? 'git.exe' : 'git';
+  return run(cmd, args, { cwd: opts.cwd || root, ...opts });
+}
+function gitCapture(args, opts = {}) {
+  const cmd = process.platform === 'win32' ? 'git.exe' : 'git';
+  return runCapture(cmd, args, { cwd: opts.cwd || root, ...opts });
+}
+
+function copyProjectTree(target) {
+  const skip = new Set(['.git', '.setup-online-state.json', '.wrangler', 'node_modules']);
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (skip.has(entry.name)) continue;
+    cpSync(join(root, entry.name), join(target, entry.name), {
+      recursive: true,
+      force: true,
+      preserveTimestamps: true,
+    });
+  }
+}
+
+function publishProjectToGitHub(repo, branch) {
+  if (!commandExists('git')) throw new Error('Git을 찾을 수 없습니다. SETUP_ONLINE.cmd를 다시 실행해 Git 설치를 완료해주세요.');
+  info('최신 멀리멀리 프로젝트를 GitHub 저장소에 자동 업로드합니다.');
+  ghCapture(['auth', 'setup-git'], { allowFailure: true });
+
+  const temp = mkdtempSync(join(tmpdir(), 'mullimulli-publish-'));
+  try {
+    const cloneUrl = `https://github.com/${repo}.git`;
+    const clone = gitCapture(['clone', cloneUrl, temp], { allowFailure: true });
+    if (clone.status !== 0) {
+      throw new Error(`GitHub 저장소를 임시 폴더로 복제하지 못했습니다.\n${(clone.stderr || clone.stdout || '').trim()}`);
+    }
+
+    // 프로젝트가 관리하는 경로만 교체하고, 사용자가 저장소에 따로 둔 알 수 없는
+    // 파일은 건드리지 않는다. 예전 정적 폴더 `site/`는 docs/ 전환에 따라 제거한다.
+    const managed = [
+      '.github','docs','worker','scripts','data','design','qa','site',
+      'README.md','START_HERE.txt','ONLINE_ACCOUNT_SETUP_WINDOWS.md','SITE_METADATA.md',
+      'SETUP_ONLINE.cmd','온라인계정_자동설정.cmd','LICENSE','.gitignore','.nojekyll'
+    ];
+    for (const name of managed) rmSync(join(temp, name), { recursive: true, force: true });
+    copyProjectTree(temp);
+
+    const head = gitCapture(['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: temp, allowFailure: true });
+    const current = String(head.stdout || '').trim();
+    if (head.status !== 0 || !current || current === 'HEAD') {
+      git(['checkout', '-B', branch], { cwd: temp });
+    } else if (current !== branch) {
+      const checkout = gitCapture(['checkout', branch], { cwd: temp, allowFailure: true });
+      if (checkout.status !== 0) git(['checkout', '-B', branch], { cwd: temp });
+    }
+
+    git(['config', 'user.name', 'Mullimulli Setup'], { cwd: temp });
+    git(['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], { cwd: temp });
+    git(['add', '-A'], { cwd: temp });
+    const status = gitCapture(['status', '--porcelain'], { cwd: temp });
+    if (String(status.stdout || '').trim()) {
+      git(['commit', '-m', `Deploy Mullimulli online v${VERSION}`], { cwd: temp });
+      git(['push', 'origin', `HEAD:${branch}`], { cwd: temp });
+      ok('최신 프로젝트와 deploy.yml을 GitHub에 업로드했습니다.');
+    } else {
+      ok('GitHub 저장소가 이미 최신 프로젝트와 같습니다.');
+    }
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+}
+
+async function verifyPagesOnline(repo, workerUrl) {
+  const [owner, name] = repo.split('/');
+  const page = `https://${owner}.github.io/${name}/config.js`;
+  for (let i = 0; i < 24; i++) {
+    try {
+      const res = await fetch(`${page}?setup=${Date.now()}`, { cache: 'no-store' });
+      const text = await res.text();
+      if (res.ok && text.includes(workerUrl)) {
+        ok('GitHub Pages가 Worker API를 사용하는 온라인 모드로 전환되었습니다.');
+        return true;
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 2500));
+  }
+  warn('GitHub Pages 배포는 완료됐지만 온라인 config 확인이 아직 지연되고 있습니다. 잠시 후 새로고침해 주세요.');
+  return false;
+}
+
 async function configureGitHub(repo, workerUrl) {
   ensureGitHubAuth();
   const ri = repoInfo(repo);
   ok(`GitHub 저장소: ${ri.repo} (${ri.branch})`);
+
   gh(['variable', 'set', 'MULLIMULLI_API_BASE_URL', '--body', workerUrl, '-R', ri.repo]);
   ok('GitHub Actions Variable 연결 완료');
   ensurePages(ri.repo);
 
+  // v3.7: ZIP으로 실행한 경우에도 사용자가 Git 명령을 따로 입력하지 않도록
+  // 현재 프로젝트 전체를 원격 저장소에 자동 업로드한다. 이 단계가 빠지면
+  // Worker/D1은 살아 있어도 GitHub Pages가 apiBaseUrl:""인 로컬 데모로 남는다.
+  publishProjectToGitHub(ri.repo, ri.branch);
+
   const trigger = ghCapture(['workflow', 'run', 'deploy.yml', '-R', ri.repo, '--ref', ri.branch], { allowFailure: true });
   if (trigger.status !== 0) {
-    warn('원격 저장소에서 deploy.yml Workflow를 찾지 못했거나 아직 최신 프로젝트가 업로드되지 않았습니다.');
-    info('Cloudflare/D1 계정 연결 자체는 완료되었습니다. 저장소에 최신 v3.6 파일을 올린 뒤 Actions를 한 번 실행하면 됩니다.');
-    return { ...ri, runOk: false };
+    const detail = `${trigger.stderr || trigger.stdout || ''}`.trim();
+    throw new Error(`deploy.yml 실행을 시작하지 못했습니다.${detail ? `\n${detail}` : ''}`);
   }
   process.stdout.write(trigger.stdout || '');
   ok('GitHub Pages 재배포 요청 완료');
 
-  // 방금 생성한 workflow_dispatch 실행을 찾아 잠깐 기다린다.
-  await new Promise(r => setTimeout(r, 2500));
-  const latest = ghCapture(['run', 'list', '-R', ri.repo, '--workflow', 'deploy.yml', '--event', 'workflow_dispatch', '--limit', '1', '--json', 'databaseId,status,conclusion,url'], { allowFailure: true });
+  await new Promise(r => setTimeout(r, 3000));
+  const latest = ghCapture(['run', 'list', '-R', ri.repo, '--workflow', 'deploy.yml', '--limit', '3', '--json', 'databaseId,status,conclusion,url,event,createdAt'], { allowFailure: true });
   const arr = parseJsonLoose(latest.stdout);
-  const runInfo = Array.isArray(arr) ? arr[0] : null;
-  if (runInfo?.databaseId) {
-    info(`Actions: ${runInfo.url || ''}`);
-    const watch = ghCapture(['run', 'watch', String(runInfo.databaseId), '-R', ri.repo, '--exit-status'], { allowFailure: true });
-    if (watch.status === 0) ok('GitHub Pages 배포 성공');
-    else warn('GitHub Actions가 실패했거나 시간 초과되었습니다. 위 Actions 링크에서 로그를 확인해주세요.');
+  const runInfo = Array.isArray(arr) ? arr.find(x => x?.databaseId) : null;
+  if (!runInfo?.databaseId) throw new Error('GitHub Actions 실행을 찾지 못했습니다.');
+
+  info(`Actions: ${runInfo.url || ''}`);
+  const watch = ghCapture(['run', 'watch', String(runInfo.databaseId), '-R', ri.repo, '--exit-status'], { allowFailure: true });
+  if (watch.status !== 0) {
+    throw new Error(`GitHub Pages 배포가 실패했습니다. Actions 로그를 확인해주세요: ${runInfo.url || ''}`);
   }
+  ok('GitHub Pages 배포 성공');
+  const onlineVerified = await verifyPagesOnline(ri.repo, workerUrl);
+  if(!onlineVerified) throw new Error('GitHub Pages의 온라인 config를 아직 확인하지 못했습니다. 잠시 후 SETUP_ONLINE.cmd를 다시 실행하면 배포 상태부터 이어서 확인합니다.');
   return { ...ri, runOk: true };
 }
 
 async function main() {
   console.log('');
   line('═');
-  console.log('  멀리멀리 온라인 계정 자동 연결 v3.6');
+  console.log('  멀리멀리 온라인 계정 자동 연결 v3.7');
   console.log('  이 창 하나로 Cloudflare D1 + Worker + GitHub Pages를 연결합니다.');
   line('═');
   info(`프로젝트: ${root}`);

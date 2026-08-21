@@ -615,8 +615,8 @@ Worker /api/health = ok
 
 이 세 가지가 모두 맞으면 기기 간 계정 검색을 테스트할 단계입니다.
 
-## v3.6 Windows 실행기 수정
+## v3.7 Windows 실행기 수정
 
-v3.4에서 `spawnSync npx.cmd EINVAL`이 발생할 수 있었습니다. v3.6부터 Node.js가 `npx.cmd`를 직접 실행하지 않습니다. `scripts/run-wrangler.ps1`이 PowerShell에서 `npx.cmd`를 호출하고, Node.js 자동설정기는 PowerShell 프로세스만 실행합니다.
+v3.4에서 `spawnSync npx.cmd EINVAL`이 발생할 수 있었습니다. v3.7부터 Node.js가 `npx.cmd`를 직접 실행하지 않습니다. `scripts/run-wrangler.ps1`이 PowerShell에서 `npx.cmd`를 호출하고, Node.js 자동설정기는 PowerShell 프로세스만 실행합니다.
 
 따라서 사용자는 수동 Wrangler 명령을 입력하지 말고 루트의 `SETUP_ONLINE.cmd`만 실행하면 됩니다.

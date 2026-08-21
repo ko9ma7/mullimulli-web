@@ -138,7 +138,25 @@ function currentCourier(){ return COURIERS.find(c=>c.id===state.courier)||COURIE
 function userById(id){ return demoDb().users.find(u=>u.id===id); }
 function demoAdmin(){ return demoDb().users.find(u=>u.id===SYSTEM_ADMIN.id)||SYSTEM_ADMIN; }
 function isDemoAdmin(friend){ return !API_BASE && friend?.id===SYSTEM_ADMIN.id; }
-function recipientReady(friend){ return !!friend && !!state.me?.updatedAt && (isDemoAdmin(friend) || !!friend.updatedAt); }
+function recipientReady(friend){
+  if(!friend || !state.me?.updatedAt) return false;
+  if(isDemoAdmin(friend)) return true;
+  if(API_BASE) return Number.isFinite(state.routePreview?.distanceKm) && state.routePreview?.friendId===friend.id;
+  return !!friend.updatedAt;
+}
+function recipientBlockReason(friend){
+  if(!friend) return '먼저 받을 친구를 선택해 주세요.';
+  if(!state.me?.updatedAt) return '먼저 내 위치를 업데이트해 주세요.';
+  if(isDemoAdmin(friend)) return '';
+  if(API_BASE){
+    if(state.routePreview?.loading) return '두 사람의 마지막 위치를 확인하고 있습니다.';
+    if(state.routePreview?.error) return state.routePreview.error;
+    if(!Number.isFinite(state.routePreview?.distanceKm)) return '상대방도 마지막 위치를 한 번 업데이트해야 편지를 보낼 수 있습니다.';
+    return '';
+  }
+  if(!friend.updatedAt) return '상대방도 마지막 위치를 한 번 업데이트해야 편지를 보낼 수 있습니다.';
+  return '';
+}
 function serviceHoursFor(distance,courier){
   if(!Number.isFinite(distance)||!courier) return null;
   const travel=(distance*(courier.routeFactor||1))/Math.max(0.000001,courier.speed);
@@ -161,11 +179,11 @@ async function loadRoutePreview(friend){
   if(!friend){ state.routePreview=null; return; }
   if(!API_BASE){ const d=previewDistance(friend); state.routePreview=d==null?null:{friendId:friend.id,distanceKm:d}; return; }
   if(state.routePreview?.friendId===friend.id && Number.isFinite(state.routePreview.distanceKm)) return;
-  state.routePreview={friendId:friend.id,distanceKm:null,loading:true};
+  state.routePreview={friendId:friend.id,distanceKm:null,loading:true,checkedAt:Date.now()};
   try{
     const data=await api('/api/route-preview',{method:'POST',body:JSON.stringify({toUserId:friend.id})});
-    state.routePreview={friendId:friend.id,distanceKm:Number(data.distanceKm),loading:false};
-  }catch(e){ state.routePreview={friendId:friend.id,distanceKm:null,loading:false,error:e.message}; }
+    state.routePreview={friendId:friend.id,distanceKm:Number(data.distanceKm),loading:false,checkedAt:Date.now()};
+  }catch(e){ state.routePreview={friendId:friend.id,distanceKm:null,loading:false,error:e.message,checkedAt:Date.now()}; }
 }
 function routeEstimate(friend,courier=currentCourier()){
   const distance=previewDistance(friend);
@@ -247,6 +265,24 @@ async function signup(handle,nickname,pin){
   if(String(pin).length<6) throw new Error('PIN은 6자 이상 입력해 주세요.');
   const u=profileDefaults({id:uid('u'),handle,nickname,avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],lat:null,lon:null,updatedAt:null});
   db.users.push(u); db.pins[handle]=String(pin); db.friends[u.id]=[]; saveDemo(db); localStorage.setItem(SESSION_KEY,JSON.stringify({userId:u.id})); state.me=u;
+}
+async function migrateLocalAccountToOnline(){
+  if(!API_BASE) throw new Error('온라인 서버가 연결되지 않았습니다.');
+  const local=demoMe();
+  if(!local) throw new Error('옮길 로컬 계정을 찾지 못했습니다.');
+  const db=demoDb(), pin=String(db.pins?.[local.handle]||'');
+  if(pin.length<6) throw new Error('로컬 계정의 PIN 정보를 찾지 못했습니다. 온라인에서 다시 가입해 주세요.');
+  try{
+    await signup(local.handle,local.nickname,pin);
+  }catch(e){
+    if(String(e.message||'').includes('이미 사용 중')) await login(local.handle,pin);
+    else throw e;
+  }
+  try{
+    await updateProfile({nickname:local.nickname,bio:local.bio||'',avatar:AVATARS.includes(local.avatar)?local.avatar:'🙂',discoverable:local.discoverable!==false,showLocationAge:local.showLocationAge!==false,allowFriendAdd:local.allowFriendAdd!==false});
+  }catch{}
+  localStorage.removeItem(SESSION_KEY);
+  return state.me;
 }
 async function logout(){
   if(API_BASE){try{await api('/api/logout',{method:'POST'});}catch{} localStorage.removeItem(API_TOKEN_KEY);} else localStorage.removeItem(SESSION_KEY);
@@ -331,7 +367,8 @@ function bottomButton(tab,label,emoji){return `<button data-tab="${tab}" class="
 function logoSvg(){return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M9 29 54 10 39 54 30 38 19 46l3-13Z" fill="#e7b768" stroke="#244d3b" stroke-width="3" stroke-linejoin="round"/><path d="m22 33 23-14-15 19" fill="none" stroke="#244d3b" stroke-width="3" stroke-linecap="round"/></svg>`;}
 
 function renderAuth(){
-  document.querySelector('#app').innerHTML=`<main class="auth-wrap"><section class="auth-card" aria-labelledby="auth-title"><div class="auth-visual"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><h1>메시지가<br><span style="color:var(--primary)">여행이 되는 곳.</span></h1><p>거리와 전달 방식에 따라 메시지가 실제 시간 동안 이동합니다. 이미 떠난 편지는 되돌릴 수 없습니다.</p><div class="auth-mascot">🕊️</div><div class="auth-plane">✈️</div></div><div class="auth-form"><h2 id="auth-title">${state.authMode==='login'?'다시 만났네요':'새 여행자 만들기'}</h2><p>${API_BASE?'온라인 계정 서버에 연결되어 있습니다.':'로컬 데모입니다. 같은 브라우저에서 만든 계정끼리만 서로 검색됩니다.'}</p><div class="auth-tabs"><button class="${state.authMode==='login'?'active':''}" data-auth-mode="login">로그인</button><button class="${state.authMode==='signup'?'active':''}" data-auth-mode="signup">가입</button></div><form id="auth-form"><div class="field"><label for="handle">아이디</label><input id="handle" name="handle" autocomplete="username" placeholder="영문 소문자 아이디" required /></div>${state.authMode==='signup'?`<div class="field"><label for="nickname">닉네임</label><input id="nickname" name="nickname" maxlength="24" placeholder="친구에게 보일 이름" required /></div>`:''}<div class="field"><label for="pin">PIN / 비밀번호</label><input id="pin" name="pin" type="password" autocomplete="${state.authMode==='login'?'current-password':'new-password'}" minlength="6" placeholder="6자 이상" required /></div><div class="form-error" id="auth-error"></div><button class="btn btn-primary" style="width:100%" type="submit">${state.authMode==='login'?'로그인':'가입하고 시작'}</button></form>${!API_BASE?`<div class="demo-entry"><div class="hint">기본 체험 계정은 친구 0명으로 시작합니다.</div><button id="demo-login" class="btn btn-secondary" style="width:100%;margin-top:8px">starlight / 123456로 입장</button></div>`:''}</div></section></main>`;
+  const localDetected=API_BASE?demoMe():null;
+  document.querySelector('#app').innerHTML=`<main class="auth-wrap"><section class="auth-card" aria-labelledby="auth-title"><div class="auth-visual"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><h1>메시지가<br><span style="color:var(--primary)">여행이 되는 곳.</span></h1><p>거리와 전달 방식에 따라 메시지가 실제 시간 동안 이동합니다. 이미 떠난 편지는 되돌릴 수 없습니다.</p><div class="auth-mascot">🕊️</div><div class="auth-plane">✈️</div></div><div class="auth-form"><h2 id="auth-title">${state.authMode==='login'?'다시 만났네요':'새 여행자 만들기'}</h2><p>${API_BASE?'온라인 계정 서버에 연결되어 있습니다. 이전 로컬 데모에서 만든 계정은 서버 계정이 아니므로 온라인에서 한 번 다시 가입해야 합니다.':'로컬 데모입니다. 같은 브라우저에서 만든 계정끼리만 서로 검색됩니다.'}</p><div class="auth-tabs"><button class="${state.authMode==='login'?'active':''}" data-auth-mode="login">로그인</button><button class="${state.authMode==='signup'?'active':''}" data-auth-mode="signup">가입</button></div><form id="auth-form"><div class="field"><label for="handle">아이디</label><input id="handle" name="handle" autocomplete="username" placeholder="영문 소문자 아이디" required /></div>${state.authMode==='signup'?`<div class="field"><label for="nickname">닉네임</label><input id="nickname" name="nickname" maxlength="24" placeholder="친구에게 보일 이름" required /></div>`:''}<div class="field"><label for="pin">PIN / 비밀번호</label><input id="pin" name="pin" type="password" autocomplete="${state.authMode==='login'?'current-password':'new-password'}" minlength="6" placeholder="6자 이상" required /></div><div class="form-error" id="auth-error"></div><button class="btn btn-primary" style="width:100%" type="submit">${state.authMode==='login'?'로그인':'가입하고 시작'}</button></form>${!API_BASE?`<div class="demo-entry"><div class="hint">기본 체험 계정은 친구 0명으로 시작합니다.</div><button id="demo-login" class="btn btn-secondary" style="width:100%;margin-top:8px">starlight / 123456로 입장</button></div>`:''}${localDetected?`<div class="demo-entry migrate-entry"><strong>이 브라우저의 로컬 계정 @${escapeHtml(localDetected.handle)} 발견</strong><div class="hint">온라인 서버가 연결되었습니다. 이 버튼으로 같은 아이디/PIN을 온라인 계정으로 옮길 수 있습니다. 친구 관계와 위치는 온라인에서 다시 연결합니다.</div><button id="migrate-local-account" class="btn btn-primary" style="width:100%;margin-top:8px">@${escapeHtml(localDetected.handle)} 온라인으로 옮기기</button><div class="form-error" id="migrate-error"></div></div>`:''}</div></section></main>`;
   bindAuth();
 }
 function bindAuth(){
@@ -339,6 +376,7 @@ function bindAuth(){
   const form=document.querySelector('#auth-form');
   form.onsubmit=async e=>{e.preventDefault(); const fd=new FormData(form), err=document.querySelector('#auth-error'); err.textContent=''; try{ if(state.authMode==='login') await login(fd.get('handle'),fd.get('pin')); else await signup(fd.get('handle'),fd.get('nickname'),fd.get('pin')); await afterLogin(); }catch(ex){err.textContent=ex.message;} };
   const d=document.querySelector('#demo-login'); if(d)d.onclick=async()=>{await login('starlight','123456');await afterLogin();};
+  const migrate=document.querySelector('#migrate-local-account'); if(migrate)migrate.onclick=async()=>{const err=document.querySelector('#migrate-error');err.textContent='';migrate.disabled=true;migrate.textContent='옮기는 중…';try{await migrateLocalAccountToOnline();await afterLogin();toast('로컬 계정을 온라인 계정으로 옮겼습니다.');}catch(ex){err.textContent=ex.message;migrate.disabled=false;migrate.textContent='온라인으로 옮기기';}};
 }
 async function afterLogin(){ const friends=await getFriends(); state.selectedFriend=friends[0]||(!API_BASE?demoAdmin():null); state.routePreview=null; await render(); startRefresh(); }
 
@@ -347,10 +385,13 @@ async function render(){
   const [friends,messages]=await Promise.all([getFriends(),getMessages()]);
   if(state.selectedFriend&&!isDemoAdmin(state.selectedFriend)&&!friends.some(f=>f.id===state.selectedFriend.id)) state.selectedFriend=null;
   if(!state.selectedFriend) state.selectedFriend=friends[0]||(!API_BASE?demoAdmin():null);
-  if(state.selectedFriend && API_BASE && state.routePreview?.friendId!==state.selectedFriend.id) await loadRoutePreview(state.selectedFriend);
+  if(state.selectedFriend && API_BASE){
+    const rp=state.routePreview, staleError=rp?.error && Date.now()-(rp.checkedAt||0)>5000;
+    if(!rp || rp.friendId!==state.selectedFriend.id || staleError) await loadRoutePreview(state.selectedFriend);
+  }
   const sent=messages.filter(m=>m.fromId===state.me.id), inbox=messages.filter(m=>m.toId===state.me.id);
   const stats={delivered:messages.filter(m=>statusFor(m)==='delivered').length,transit:messages.filter(m=>statusFor(m)==='transit').length,failed:messages.filter(m=>statusFor(m)==='failed').length};
-  document.querySelector('#app').innerHTML=`<div class="app-shell"><header class="topbar"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><nav class="nav" aria-label="주요 메뉴">${navButton('send','보내기','✉️')}${navButton('journeys','여정','🧭')}${navButton('inbox','받은편지','📬')}${navButton('friends','친구','👥')}${navButton('about','설명','ℹ️')}</nav><button class="profile-chip" id="profile-menu"><span class="avatar">${state.me.avatar||'🙂'}</span><span class="profile-text"><strong>${escapeHtml(state.me.nickname)}</strong><small style="display:block;color:var(--muted)">@${escapeHtml(state.me.handle)}</small></span><span class="status-dot" aria-label="접속 중"></span></button></header><main id="main" class="main"><section class="hero"><div class="hero-copy"><h1>느리게, 멀리,<br><span>마음을 전하세요.</span></h1><p>전달자를 고르면 메시지는 보내는 순간의 두 사람 마지막 위치를 기준으로 여행을 시작합니다. 이동 중에는 취소할 수 없고, 때로는 길에서 사라질 수도 있습니다.</p><div class="hero-actions"><button class="btn btn-primary" data-tab="send">✈️ 편지 보내기</button><button class="btn btn-secondary" data-tab="journeys">🧭 내 여정 보기</button></div></div><div class="hero-art"><div class="flight-scene"><img class="hero-bird-img" src="./assets/hero-bird.png" alt="편지를 나르는 비둘기 일러스트" loading="eager" /><div class="route-line"></div><div class="paper one">✈️</div><div class="paper two">🦋</div></div><div class="hero-stat"><span class="eyebrow">현재 여행 중</span><b>${stats.transit}개</b><span class="hint">${API_BASE?'온라인 · 실제 서비스 시간':'로컬 데모 · 실제 시간 1×'}</span></div></div></section><div class="layout"><div class="content-stack">${state.tab==='send'?sendPanel(friends):state.tab==='journeys'?journeysPanel(sent):state.tab==='inbox'?inboxPanel(inbox):state.tab==='friends'?friendsPanel(friends):aboutPanel()}</div><aside class="side-stack">${profilePanel()}${friendsMini(friends)}${statsPanel(stats)}</aside></div></main><nav class="bottom-nav" aria-label="모바일 메뉴">${bottomButton('send','보내기','✉️')}${bottomButton('journeys','여정','🧭')}${bottomButton('inbox','받기','📬')}${bottomButton('friends','친구','👥')}${bottomButton('about','설명','ℹ️')}</nav></div>`;
+  document.querySelector('#app').innerHTML=`<div class="app-shell"><header class="topbar"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><nav class="nav" aria-label="주요 메뉴">${navButton('send','보내기','✉️')}${navButton('journeys','여정','🧭')}${navButton('inbox','받은편지','📬')}${navButton('friends','친구','👥')}${navButton('about','설명','ℹ️')}</nav><span class="connection-chip ${API_BASE?'is-online':'is-local'}">${API_BASE?'● 온라인':'○ 로컬'}</span><button class="profile-chip" id="profile-menu"><span class="avatar">${state.me.avatar||'🙂'}</span><span class="profile-text"><strong>${escapeHtml(state.me.nickname)}</strong><small style="display:block;color:var(--muted)">@${escapeHtml(state.me.handle)}</small></span><span class="status-dot" aria-label="접속 중"></span></button></header><main id="main" class="main"><section class="hero"><div class="hero-copy"><h1>느리게, 멀리,<br><span>마음을 전하세요.</span></h1><p>전달자를 고르면 메시지는 보내는 순간의 두 사람 마지막 위치를 기준으로 여행을 시작합니다. 이동 중에는 취소할 수 없고, 때로는 길에서 사라질 수도 있습니다.</p><div class="hero-actions"><button class="btn btn-primary" data-tab="send">✈️ 편지 보내기</button><button class="btn btn-secondary" data-tab="journeys">🧭 내 여정 보기</button></div></div><div class="hero-art"><div class="flight-scene"><img class="hero-bird-img" src="./assets/hero-bird.png" alt="편지를 나르는 비둘기 일러스트" loading="eager" /><div class="route-line"></div><div class="paper one">✈️</div><div class="paper two">🦋</div></div><div class="hero-stat"><span class="eyebrow">현재 여행 중</span><b>${stats.transit}개</b><span class="hint">${API_BASE?'온라인 · 실제 서비스 시간':'로컬 데모 · 실제 시간 1×'}</span></div></div></section><div class="layout"><div class="content-stack">${state.tab==='send'?sendPanel(friends):state.tab==='journeys'?journeysPanel(sent):state.tab==='inbox'?inboxPanel(inbox):state.tab==='friends'?friendsPanel(friends):aboutPanel()}</div><aside class="side-stack">${profilePanel()}${friendsMini(friends)}${statsPanel(stats)}</aside></div></main><nav class="bottom-nav" aria-label="모바일 메뉴">${bottomButton('send','보내기','✉️')}${bottomButton('journeys','여정','🧭')}${bottomButton('inbox','받기','📬')}${bottomButton('friends','친구','👥')}${bottomButton('about','설명','ℹ️')}</nav></div>`;
   bindMain(friends);
 }
 function sendPanel(friends){
@@ -359,7 +400,7 @@ function sendPanel(friends){
   const compatibility=Number.isFinite(distance)?(courierMatchesDistance(c,distance)?'이 거리에 잘 맞는 전달자':'권장 거리 밖의 모험적인 선택'):'거리 확인 후 추천';
   const adminTest=!API_BASE?`<div class="demo-recipient"><div class="demo-recipient-head"><div><strong>🕊️ 관리자 테스트 우편함</strong><p>기본 친구는 없습니다. 내 위치 기준 가상 거리만 바꿔 전달 시간을 시험합니다.</p></div><button type="button" class="btn btn-secondary ${isDemoAdmin(f)?'selected-soft':''}" data-select-admin>${isDemoAdmin(f)?'선택됨':'관리자로 테스트'}</button></div>${isDemoAdmin(f)?`<div class="distance-presets" aria-label="관리자 테스트 거리">${DEMO_DISTANCE_PRESETS.map(km=>`<button type="button" class="filter-chip ${state.demoDistanceKm===km?'active':''}" data-demo-distance="${km}">${km<1?`${Math.round(km*1000)}m`:`${km.toLocaleString()}km`}</button>`).join('')}</div>`:''}</div>`:'';
   const friendRows=friends.length?friends.map(x=>friendChoice(x,f?.id===x.id)).join(''):'<div class="empty compact"><strong>아직 친구가 없습니다.</strong><p>친구 메뉴에서 실제 가입한 @아이디를 검색해 추가하세요.</p></div>';
-  return `<section class="panel"><div class="panel-head"><div><span class="eyebrow">1. 거리별 배달 서비스</span><h2>거리와 기다림에 맞춰 골라보세요.</h2><p class="panel-sub">${f?`${escapeHtml(f.nickname)}까지 `:''}<strong>${distanceText}</strong> · 총 ${COURIERS.length}가지 전달 방식</p></div>${!API_BASE?`<span class="demo-badge">⏱️ ${DEMO_SCALE===1?'실제 시간 1×':`QA ${DEMO_SCALE.toLocaleString()}×`}</span>`:''}</div>${courierFilterBar()}<div class="courier-row">${courierCards(f)}</div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">2. 편지 쓰기</span><h2>도착할 때까지 열리지 않는 메시지</h2></div></div>${adminTest}<div class="send-grid"><div><div class="field"><label>받는 사람</label><input id="friend-search" value="${escapeHtml(state.search)}" placeholder="내 친구의 닉네임 또는 @아이디" autocomplete="off" /></div><div id="friend-results" class="friend-search-results">${friendRows}</div></div><form id="send-form"><div class="field"><label for="message-body">메시지</label><textarea id="message-body" maxlength="500" placeholder="도착한 뒤에 읽었으면 하는 말을 적어보세요." required></textarea><div class="hint">수신자는 도착 전에는 내용을 볼 수 없습니다.</div></div><div class="estimate"><div class="estimate-grid"><div class="metric"><span>전달자</span><b>${c.emoji} ${escapeHtml(c.name)}</b><small>${compatibility}</small></div><div class="metric"><span>거리</span><b>${Number.isFinite(est.distance)?`${est.distance.toFixed(1)} km`:(state.routePreview?.loading?'계산 중…':'위치 필요')}</b><small>${Number.isFinite(est.distance)?distanceLabel(est.distance):'친구 좌표는 공개되지 않습니다'}</small></div><div class="metric"><span>서비스 시간</span><b>${fmtDuration(est.hours)}</b><small>성공률 ${100-Math.round(c.fail*100)}% · 최소 ${fmtDuration(c.minHours)}</small></div></div><div class="immutable-note"><span>🔒</span><div><strong>한 번 보내면 취소할 수 없습니다.</strong><br>서비스 시간은 거리·기준 속도·우회 계수·최소 대기시간으로 계산합니다.</div></div></div><div class="send-footer"><span class="char-count"><span id="chars">0</span>/500</span><button class="btn btn-primary" type="submit" ${recipientReady(f)?'':'disabled'}>편지 출발시키기 ✈️</button></div>${!state.me.updatedAt?'<p class="hint">먼저 오른쪽의 “내 위치 업데이트”를 눌러 위치를 저장해 주세요.</p>':''}</form></div></section>`;
+  return `<section class="panel"><div class="panel-head"><div><span class="eyebrow">1. 거리별 배달 서비스</span><h2>거리와 기다림에 맞춰 골라보세요.</h2><p class="panel-sub">${f?`${escapeHtml(f.nickname)}까지 `:''}<strong>${distanceText}</strong> · 총 ${COURIERS.length}가지 전달 방식</p></div>${!API_BASE?`<span class="demo-badge">⏱️ ${DEMO_SCALE===1?'실제 시간 1×':`QA ${DEMO_SCALE.toLocaleString()}×`}</span>`:''}</div>${courierFilterBar()}<div class="courier-row">${courierCards(f)}</div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">2. 편지 쓰기</span><h2>도착할 때까지 열리지 않는 메시지</h2></div></div>${adminTest}<div class="send-grid"><div><div class="field"><label>받는 사람</label><input id="friend-search" value="${escapeHtml(state.search)}" placeholder="내 친구의 닉네임 또는 @아이디" autocomplete="off" /></div><div id="friend-results" class="friend-search-results">${friendRows}</div></div><form id="send-form"><div class="field"><label for="message-body">메시지</label><textarea id="message-body" maxlength="500" placeholder="도착한 뒤에 읽었으면 하는 말을 적어보세요." required></textarea><div class="hint">수신자는 도착 전에는 내용을 볼 수 없습니다.</div></div><div class="estimate"><div class="estimate-grid"><div class="metric"><span>전달자</span><b>${c.emoji} ${escapeHtml(c.name)}</b><small>${compatibility}</small></div><div class="metric"><span>거리</span><b>${Number.isFinite(est.distance)?`${est.distance.toFixed(1)} km`:(state.routePreview?.loading?'계산 중…':'위치 필요')}</b><small>${Number.isFinite(est.distance)?distanceLabel(est.distance):'친구 좌표는 공개되지 않습니다'}</small></div><div class="metric"><span>서비스 시간</span><b>${fmtDuration(est.hours)}</b><small>성공률 ${100-Math.round(c.fail*100)}% · 최소 ${fmtDuration(c.minHours)}</small></div></div>${API_BASE&&f?'<button type="button" class="route-refresh" id="refresh-route">↻ 거리/위치 다시 확인</button>':''}<div class="immutable-note"><span>🔒</span><div><strong>한 번 보내면 취소할 수 없습니다.</strong><br>서비스 시간은 거리·기준 속도·우회 계수·최소 대기시간으로 계산합니다.</div></div></div><div class="send-footer"><span class="char-count"><span id="chars">0</span>/500</span><button class="btn btn-primary" type="submit" ${recipientReady(f)?'':'disabled'}>편지 출발시키기 ✈️</button></div>${!recipientReady(f)?`<p class="hint send-block-reason">${escapeHtml(recipientBlockReason(f))}</p>`:''}</form></div></section>`;
 }
 function locationAgeText(user){ return user.showLocationAge===false?'위치 시각 비공개':user.updatedAt?`위치 ${fmtAgo(user.updatedAt)}`:'위치 없음'; }
 function friendChoice(x,selected){
@@ -411,6 +452,7 @@ function bindMain(friends){
   document.querySelectorAll('[data-select-friend]').forEach(b=>b.onclick=()=>{state.selectedFriend=friends.find(f=>f.id===b.dataset.selectFriend)||state.selectedFriend; state.routePreview=null; state.courierFilter='recommended'; state.tab='send';render();});
   const adminButton=document.querySelector('[data-select-admin]'); if(adminButton)adminButton.onclick=()=>{state.selectedFriend=demoAdmin();state.routePreview=null;state.courierFilter='recommended';render();};
   document.querySelectorAll('[data-demo-distance]').forEach(b=>b.onclick=()=>{state.demoDistanceKm=Number(b.dataset.demoDistance);state.routePreview=null;state.courierFilter='recommended';const list=filterCouriers(state.demoDistanceKm);if(list.length&&!list.some(c=>c.id===state.courier))state.courier=list[0].id;render();});
+  const refreshRoute=document.querySelector('#refresh-route'); if(refreshRoute)refreshRoute.onclick=async()=>{refreshRoute.disabled=true;refreshRoute.textContent='확인 중…';state.routePreview=null;try{await loadRoutePreview(state.selectedFriend);}finally{render();}};
   const body=document.querySelector('#message-body'); if(body)body.oninput=()=>document.querySelector('#chars').textContent=body.value.length;
   const form=document.querySelector('#send-form'); if(form) form.onsubmit=e=>{e.preventDefault(); if(!state.selectedFriend)return; const text=body.value.trim(); if(!text)return; confirmSend(text);};
   const search=document.querySelector('#friend-search');

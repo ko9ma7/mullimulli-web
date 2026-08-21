@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 Set-Location -LiteralPath (Split-Path -Parent $PSScriptRoot)
 $Root = (Get-Location).Path
 
@@ -13,7 +13,7 @@ function Refresh-Path {
 }
 
 Write-Host "============================================================"
-Write-Host " Mullimulli online account setup v3.6"
+Write-Host " Mullimulli online account setup v3.7"
 Write-Host " Project: $Root"
 Write-Host "============================================================"
 Write-Host ""
@@ -23,11 +23,11 @@ if (-not (Test-Path -LiteralPath (Join-Path $Root "scripts\setup-online.mjs"))) 
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $Root "scripts\run-wrangler.ps1"))) {
-    throw "scripts/run-wrangler.ps1 was not found. Extract the v3.6 ZIP into a new folder."
+    throw "scripts/run-wrangler.ps1 was not found. Extract the v3.7 ZIP into a new folder."
 }
 
 if (-not (Test-Command "node.exe")) {
-    Write-Host "[1/3] Installing Node.js LTS..."
+    Write-Host "[1/4] Installing Node.js LTS..."
     if (-not (Test-Command "winget.exe")) {
         Start-Process "https://nodejs.org/"
         throw "winget is unavailable. Install Node.js LTS, then run SETUP_ONLINE.cmd again."
@@ -41,8 +41,23 @@ if (-not (Test-Command "node.exe")) {
     throw "Node.js is installed but not visible yet. Close this window and run SETUP_ONLINE.cmd again."
 }
 
+if (-not (Test-Command "git.exe")) {
+    Write-Host "[2/4] Installing Git..."
+    if (-not (Test-Command "winget.exe")) {
+        Start-Process "https://git-scm.com/download/win"
+        throw "winget is unavailable. Install Git for Windows, then run SETUP_ONLINE.cmd again."
+    }
+    & winget.exe install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements
+    if ($LASTEXITCODE -ne 0) { throw "Git installation failed." }
+    Refresh-Path
+}
+
+if (-not (Test-Command "git.exe")) {
+    throw "Git is installed but not visible yet. Close this window and run SETUP_ONLINE.cmd again."
+}
+
 if (-not (Test-Command "gh.exe")) {
-    Write-Host "[2/3] Installing GitHub CLI..."
+    Write-Host "[3/4] Installing GitHub CLI..."
     if (-not (Test-Command "winget.exe")) {
         Start-Process "https://cli.github.com/"
         throw "winget is unavailable. Install GitHub CLI, then run SETUP_ONLINE.cmd again."
@@ -56,7 +71,7 @@ if (-not (Test-Command "gh.exe")) {
     throw "GitHub CLI is installed but not visible yet. Close this window and run SETUP_ONLINE.cmd again."
 }
 
-Write-Host "[3/3] Starting automatic Cloudflare + GitHub setup..."
+Write-Host "[4/4] Starting automatic Cloudflare + GitHub setup..."
 Write-Host "Browser login/authorization windows may open. Approve them and return here."
 Write-Host ""
 
