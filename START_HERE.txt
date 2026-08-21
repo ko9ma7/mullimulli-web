@@ -1,0 +1,23 @@
+멀리멀리 v3.6 온라인 계정 자동 연결
+
+1. 이 ZIP을 기존 v3.4 폴더에 덮어쓰지 말고 새 폴더에 압축 해제합니다.
+   예: C:\worker\mullimulli-web-v3.6
+
+2. SETUP_ONLINE.cmd 를 더블클릭합니다.
+
+3. 브라우저가 열리면 Cloudflare / GitHub 로그인 또는 승인만 합니다.
+   나머지는 자동으로 진행됩니다.
+
+정상이라면 처음에 아래 단계가 통과합니다.
+[0] Windows Wrangler 실행기 점검
+✓ Wrangler 실행 가능
+
+v3.4에서 보인 "spawnSync npx.cmd EINVAL"은 v3.6에서 npx.cmd를 Node.js가 직접 실행하지 않도록 수정했습니다.
+
+GitHub 저장소 기본값:
+ko9ma7/mullimulli-web
+
+
+[v3.6 수정]
+Wrangler 4.125 이상에서 로그인 완료 뒤 "AI coding agents / Cloudflare skills" 질문이 나타나며 종료 코드 1이 반환되는 경우를 처리했습니다.
+자동설정기는 이제 해당 선택 기능을 명시적으로 끄고, 로그인 명령이 1로 끝나더라도 실제 OAuth 토큰이 생성되었으면 정상 진행합니다.

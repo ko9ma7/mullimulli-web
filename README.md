@@ -1,3 +1,6 @@
+
+> **v3.6 Windows 자동설정 개선**: Wrangler 4.x가 JSON 출력을 캡처하는 명령을 비대화식 환경으로 판단해 `CLOUDFLARE_API_TOKEN`을 요구하는 경우가 있습니다. 자동설정기는 `wrangler auth token --json`으로 이미 승인된 OAuth 세션 토큰을 현재 프로세스에만 임시 전달해 이 오류를 자동 처리합니다. 토큰은 프로젝트 파일이나 GitHub에 저장하지 않습니다.
+
 # 멀리멀리 (MulliMulli)
 
 **느리게, 멀리, 마음을 전하세요.**
@@ -5,6 +8,37 @@
 멀리멀리는 메시지가 즉시 도착하지 않고, **발송 순간의 두 사용자 마지막 위치**, **선택한 전달자의 서비스 기준 속도**, **최소 대기시간**, **우회 계수**, **실패 확률**에 따라 실제 시간을 기다리는 메시지 웹서비스입니다.
 
 한 번 출발한 메시지는 사용자가 취소하거나 목적지를 바꿀 수 없습니다. 매우 느린 전달자를 선택하면 수개월~수년, 길게는 10년 이상 기다리는 타임캡슐이 됩니다.
+
+
+## 가장 쉬운 온라인 계정 연결 (Windows)
+
+**명령어를 직접 입력할 필요가 없습니다.** ZIP을 압축 해제한 뒤 프로젝트 루트의 아래 파일을 더블클릭하세요.
+
+```text
+SETUP_ONLINE.cmd
+```
+
+또는 한글 바로가기:
+
+```text
+온라인계정_자동설정.cmd
+```
+
+자동 설정 프로그램이 다음을 순서대로 처리합니다.
+
+1. Node.js LTS / GitHub CLI가 없으면 `winget`으로 설치 시도
+2. Cloudflare 로그인 창 열기
+3. `mullimulli-db` D1 생성 또는 기존 DB 재사용
+4. `wrangler.toml`의 D1 ID와 GitHub Pages CORS 자동 입력
+5. 신규/기존 DB 스키마 자동 판별 및 필요한 컬럼만 보완
+6. 기존 `MESSAGE_KEY`는 보존하고, 없을 때만 새 암호화 키 생성
+7. Worker 배포 및 `/api/health` 확인
+8. GitHub 로그인 창 열기
+9. Repository Actions Variable `MULLIMULLI_API_BASE_URL` 자동 등록
+10. GitHub Pages를 Workflow 방식으로 준비하고 `deploy.yml` 재실행
+11. 완료 후 사이트 자동 열기
+
+보안상 **Cloudflare와 GitHub의 브라우저 로그인 승인만 사용자가 직접 해야 합니다.** 이미 로그인되어 있으면 그 단계도 자동으로 건너뜁니다. 같은 파일을 다시 실행해도 기존 D1과 암호화 키를 재사용하도록 만들었습니다.
 
 ## Preview
 
@@ -91,8 +125,8 @@ worker/src/couriers.generated.js
 
 ```bash
 cd worker
-wrangler d1 execute mullimulli-db --file=./migrations/0002_profile_settings.sql --remote
-wrangler deploy
+npx wrangler@latest d1 execute mullimulli-db --file=./migrations/0002_profile_settings.sql --remote --yes
+npx wrangler@latest deploy
 ```
 
 그 다음 GitHub Repository의 **Settings → Secrets and variables → Actions → Variables**에 아래 값을 등록합니다.
@@ -240,47 +274,22 @@ python scripts/configure_site.py \
 
 ## Online Multi-user Backend
 
-### 1. Wrangler
+Windows에서는 **수동 명령보다 `SETUP_ONLINE.cmd` 사용을 권장**합니다. 프로젝트 경로와 상관없이 파일 위치를 기준으로 실행하므로 `cd worker`에서 막힐 필요가 없습니다. 자세한 수동 복구 절차는 [ONLINE_ACCOUNT_SETUP_WINDOWS.md](./ONLINE_ACCOUNT_SETUP_WINDOWS.md)에 남겨두었습니다.
 
-```bash
-npm install -g wrangler
-wrangler login
+### 자동 설정
+
+```text
+SETUP_ONLINE.cmd 더블클릭
 ```
 
-### 2. D1
+이 스크립트는 Wrangler를 전역 설치하지 않고 `npx --yes wrangler@latest`로 실행합니다. D1이 이미 있으면 재사용하고, 기존 `MESSAGE_KEY` Secret도 덮어쓰지 않습니다. GitHub 저장소를 현재 Git remote에서 찾지 못하는 경우에만 `owner/repository`를 한 번 입력받습니다.
 
-```bash
-cd worker
-wrangler d1 create mullimulli-db
-```
+### 수동 실행이 필요한 경우
 
-생성된 `database_id`를 `worker/wrangler.toml`에 반영합니다.
+자동 설정이 특정 PC 정책 때문에 중단된 경우에만 아래 문서를 사용하세요.
 
-### 3. Schema
-
-```bash
-wrangler d1 execute mullimulli-db --file=./schema.sql --remote
-```
-
-기존 v2 DB를 업데이트하는 경우에는 `schema.sql` 대신 `migrations/0002_profile_settings.sql`을 한 번 적용합니다.
-
-### 4. Message encryption key
-
-```bash
-openssl rand -base64 32
-wrangler secret put MESSAGE_KEY
-```
-
-Secret은 GitHub Pages나 공개 저장소 코드에 넣지 않습니다.
-
-### 5. CORS
-
-`worker/wrangler.toml`의 `ALLOWED_ORIGINS`에 실제 Pages origin을 넣습니다.
-
-### 6. Deploy
-
-```bash
-wrangler deploy
+```text
+ONLINE_ACCOUNT_SETUP_WINDOWS.md
 ```
 
 ## Data / Privacy Model

@@ -1,7 +1,7 @@
 window.MULLIMULLI_CONFIG = {
   serviceName: '멀리멀리',
-  apiBaseUrl: '',
+  apiBaseUrl: 'https://mullimulli-api.mullimulli-api.workers.dev',
   demoTimeAcceleration: 1,
-  buildVersion: '3.0.0',
-  siteUrl: 'https://USERNAME.github.io/REPOSITORY/'
+  buildVersion: '3.6.0',
+  siteUrl: 'https://ko9ma7.github.io/mullimulli-web/'
 };

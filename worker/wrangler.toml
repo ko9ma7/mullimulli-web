@@ -5,7 +5,7 @@ compatibility_date = "2026-08-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "mullimulli-db"
-database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"
+database_id = "7b2a041c-506f-4bf4-b731-8df158f2b2af"
 
 [vars]
-ALLOWED_ORIGINS = "http://localhost:8080,https://USERNAME.github.io"
+ALLOWED_ORIGINS = "http://localhost:8080,http://127.0.0.1:8080,https://ko9ma7.github.io"
