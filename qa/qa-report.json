@@ -1,0 +1,60 @@
+{
+  "viewports": {
+    "320": {
+      "overflow": false,
+      "bottomNav": true,
+      "heroVisible": true,
+      "errors": []
+    },
+    "375": {
+      "overflow": false,
+      "bottomNav": true,
+      "heroVisible": true,
+      "errors": []
+    },
+    "390": {
+      "overflow": false,
+      "bottomNav": true,
+      "heroVisible": true,
+      "errors": []
+    },
+    "430": {
+      "overflow": false,
+      "bottomNav": true,
+      "heroVisible": true,
+      "errors": []
+    },
+    "768": {
+      "overflow": false,
+      "bottomNav": true,
+      "heroVisible": true,
+      "errors": []
+    },
+    "1024": {
+      "overflow": false,
+      "bottomNav": false,
+      "heroVisible": true,
+      "errors": []
+    },
+    "1440": {
+      "overflow": false,
+      "bottomNav": false,
+      "heroVisible": true,
+      "errors": []
+    }
+  },
+  "hero": "느리게, 멀리,\n마음을 전하세요.",
+  "couriers": 7,
+  "send_enabled": true,
+  "location_updated": true,
+  "snail_service_time": true,
+  "confirm_modal": true,
+  "journey_count": 1,
+  "no_cancel_button": true,
+  "inbox_title": "나에게 오고 있는 메시지",
+  "friend_results": 1,
+  "rules": true,
+  "errors": [],
+  "schema_sql": "ok",
+  "missing_assets": []
+}

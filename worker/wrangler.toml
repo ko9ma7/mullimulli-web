@@ -1,0 +1,11 @@
+name = "mullimulli-api"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mullimulli-db"
+database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:8080,https://USERNAME.github.io"
