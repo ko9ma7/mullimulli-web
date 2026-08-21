@@ -20,7 +20,7 @@ git branch -M main
 git remote remove origin 2>nul || true
 git remote add origin https://github.com/ko9ma7/mullimulli-web.git
 git add .
-git commit -m "Update MulliMulli v3.8 send experience"
+git commit -m "Update MulliMulli v3.9 send experience"
 git push -u origin main --force-with-lease
 ```
 
@@ -28,7 +28,7 @@ git push -u origin main --force-with-lease
 
 ```bash
 git add .
-git commit -m "Update MulliMulli v3.8 send experience"
+git commit -m "Update MulliMulli v3.9 send experience"
 git push origin main
 ```
 

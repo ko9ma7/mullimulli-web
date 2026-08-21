@@ -71,16 +71,57 @@ function fmtSpeed(kmh){
   return `${Math.round(meters*100000)/1000} cm/h`;
 }
 function fmtDate(ts){ return new Intl.DateTimeFormat('ko-KR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(ts)); }
+function asTimestamp(ts){
+  if(ts==null||ts==='') return null;
+  const n=Number(ts);
+  if(Number.isFinite(n)) return n;
+  const parsed=Date.parse(ts);
+  return Number.isFinite(parsed)?parsed:null;
+}
 function fmtArrivalDate(ts){
-  if(!ts) return '-';
-  return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(ts));
+  const value=asTimestamp(ts);
+  if(!value) return '-';
+  return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(value));
+}
+function fmtJourneyDay(ts){
+  const value=asTimestamp(ts);
+  if(!value) return '-';
+  return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).format(new Date(value));
+}
+function fmtJourneyClock(ts){
+  const value=asTimestamp(ts);
+  if(!value) return '-';
+  return new Intl.DateTimeFormat('ko-KR',{hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(value));
+}
+function calendarDayDistance(ts){
+  const value=asTimestamp(ts);
+  if(!value) return null;
+  const now=new Date(), target=new Date(value);
+  const todayUtc=Date.UTC(now.getFullYear(),now.getMonth(),now.getDate());
+  const targetUtc=Date.UTC(target.getFullYear(),target.getMonth(),target.getDate());
+  return Math.round((targetUtc-todayUtc)/86400000);
 }
 function dDayLabel(ts){
-  if(!ts) return 'D-?';
-  const diff=Number(ts)-Date.now();
-  if(diff<=0) return 'D-DAY';
-  const days=Math.floor(diff/86400000);
-  return days<1?'D-DAY':`D-${days}`;
+  const days=calendarDayDistance(ts);
+  if(days==null) return 'D-?';
+  if(days<0) return '도착 완료';
+  if(days===0) return 'D-DAY';
+  return `D-${days}`;
+}
+function remainingDuration(ms){
+  let mins=Math.max(1,Math.ceil(ms/60000));
+  const days=Math.floor(mins/1440); mins%=1440;
+  const hours=Math.floor(mins/60), minutes=mins%60;
+  if(days>=365){const years=Math.floor(days/365), months=Math.floor((days%365)/30); return months?`${years}년 ${months}개월`:`${years}년`;}
+  if(days>=60){const months=Math.floor(days/30), rest=days%30; return rest?`${months}개월 ${rest}일`:`${months}개월`;}
+  if(days>0) return hours?`${days}일 ${hours}시간`:`${days}일`;
+  if(hours>0) return minutes?`${hours}시간 ${minutes}분`:`${hours}시간`;
+  return `${minutes}분`;
+}
+function journeyDuration(startTs,endTs){
+  const start=asTimestamp(startTs), end=asTimestamp(endTs);
+  if(!start||!end||end<=start) return '-';
+  return remainingDuration(end-start);
 }
 function remainingUntil(ts){
   if(!ts) return '계산 전';
@@ -457,9 +498,11 @@ function inboxPanel(messages){
 function journeyCard(m,isSender,compact=false){
   const c=COURIERS.find(x=>x.id===m.courierId)||COURIERS[0], status=statusFor(m), other=profileDefaults((isSender?m.to:m.from)||userById(isSender?m.toId:m.fromId)||{nickname:'친구',handle:'friend',avatar:'🙂'});
   const labels={transit:'여행 중',delivered:'도착',failed:'전달 실패'}, pct=Math.round(progressFor(m));
-  const target=status==='failed'?(m.failureAt||m.arrivalAt):m.arrivalAt;
+  const createdAt=asTimestamp(m.createdAt), arrivalAt=asTimestamp(m.arrivalAt), failureAt=asTimestamp(m.failureAt);
+  const target=status==='failed'?(failureAt||arrivalAt):arrivalAt;
   const dday=status==='transit'?dDayLabel(target):status==='delivered'?'도착 완료':'전달 종료';
-  const remain=status==='transit'?remainingUntil(target):status==='delivered'?'메시지를 열 수 있어요':'목적지에 도착하지 못했어요';
+  const remain=status==='transit'?remainingUntil(target):status==='delivered'?'도착한 편지입니다':'목적지에 도착하지 못했습니다';
+  const duration=journeyDuration(createdAt,target), targetLabel=status==='failed'?'여정 종료':'도착 예정';
   let preview='';
   if(!compact){
     if(isSender) preview=`<div class="message-preview">${escapeHtml(m.body||'')}</div>`;
@@ -467,7 +510,7 @@ function journeyCard(m,isSender,compact=false){
     else if(status==='failed') preview=`<div class="message-preview">이 편지는 목적지에 도착하지 못해 내용이 사라졌습니다.</div>`;
     else preview=`<div class="message-preview locked">아직 열 수 없는 메시지입니다. 도착할 때까지 기다려 주세요.</div>`;
   }
-  return `<article class="journey ${compact?'journey-compact':''}"><div class="journey-main"><div class="journey-top"><div class="journey-title"><span class="courier-emoji">${c.emoji}</span><div><strong>${escapeHtml(other.nickname)} ${isSender?'에게':'에게서'}</strong><small>@${escapeHtml(other.handle)} · ${escapeHtml(c.name)} · ${Number(m.distanceKm||0).toFixed(1)} km</small></div></div><span class="pill ${status}">${labels[status]}</span></div><div class="progress-row"><div class="progress"><i style="width:${pct}%"></i></div><strong>${pct}%</strong></div><div class="journey-dates"><span>출발 ${fmtArrivalDate(m.createdAt)}</span><span>${status==='failed'?'종료':'도착 예정'} ${fmtArrivalDate(target)}</span></div>${preview}</div><aside class="journey-countdown"><strong>${dday}</strong><span>남은 시간</span><b>${remain}</b></aside></article>`;
+  return `<article class="journey ${compact?'journey-compact':''}"><div class="journey-main"><div class="journey-top"><div class="journey-title"><span class="courier-emoji">${c.emoji}</span><div><strong>${escapeHtml(other.nickname)} ${isSender?'에게':'에게서'}</strong><small>@${escapeHtml(other.handle)} · ${escapeHtml(c.name)} · ${Number(m.distanceKm||0).toFixed(1)} km</small></div></div><span class="pill ${status}">${labels[status]}</span></div><div class="progress-row"><div class="progress"><i style="width:${pct}%"></i></div><strong>${pct}%</strong></div><div class="journey-time-grid"><div class="journey-time-point departure"><span class="time-kicker">출발 일시</span><strong>${fmtJourneyDay(createdAt)}</strong><b>${fmtJourneyClock(createdAt)}</b></div><div class="journey-route-arrow" aria-hidden="true"><span>→</span><small>총 ${duration}</small></div><div class="journey-time-point arrival"><span class="time-kicker">${targetLabel}</span><strong>${fmtJourneyDay(target)}</strong><b>${fmtJourneyClock(target)}</b></div></div>${preview}</div><aside class="journey-countdown"><span class="countdown-kicker">도착까지</span><strong>${dday}</strong><span>남은 시간</span><b>${remain}</b>${status==='transit'?`<small>${fmtJourneyDay(target)}<br>${fmtJourneyClock(target)} 도착</small>`:''}</aside></article>`;
 }
 function friendDirectoryRow(user,friendIds){
   const isFriend=user.isFriend||friendIds.has(user.id), canAdd=user.allowFriendAdd!==false;

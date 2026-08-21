@@ -16,7 +16,7 @@ const configFile = join(root, 'docs', 'config.js');
 const stateFile = join(root, '.setup-online-state.json');
 const DB_NAME = 'mullimulli-db';
 const WORKER_NAME = 'mullimulli-api';
-const VERSION = '3.8.0';
+const VERSION = '3.9.0';
 const DEFAULT_GITHUB_REPO = 'ko9ma7/mullimulli-web';
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -441,7 +441,7 @@ async function configureGitHub(repo, workerUrl) {
   ok('GitHub Actions Variable 연결 완료');
   ensurePages(ri.repo);
 
-  // v3.8: ZIP으로 실행한 경우에도 사용자가 Git 명령을 따로 입력하지 않도록
+  // v3.9: ZIP으로 실행한 경우에도 사용자가 Git 명령을 따로 입력하지 않도록
   // 현재 프로젝트 전체를 원격 저장소에 자동 업로드한다. 이 단계가 빠지면
   // Worker/D1은 살아 있어도 GitHub Pages가 apiBaseUrl:""인 로컬 데모로 남는다.
   publishProjectToGitHub(ri.repo, ri.branch);
@@ -474,7 +474,7 @@ async function configureGitHub(repo, workerUrl) {
 async function main() {
   console.log('');
   line('═');
-  console.log('  멀리멀리 온라인 계정 자동 연결 v3.8');
+  console.log('  멀리멀리 온라인 계정 자동 연결 v3.9');
   console.log('  이 창 하나로 Cloudflare D1 + Worker + GitHub Pages를 연결합니다.');
   line('═');
   info(`프로젝트: ${root}`);
