@@ -4,34 +4,41 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>멀리멀리 — 메시지가 여행이 되는 메신저</title>
-  <meta name="description" content="비둘기, 나비, 종이비행기, 달팽이 등 원하는 전달자를 골라 거리와 속도만큼 기다리는 재미있는 메시지 서비스." />
+  <meta name="description" content="비둘기, 곤충, 종이비행기, 열차, 타임캡슐 등 50가지 전달자를 골라 거리와 서비스 규칙만큼 실제 시간을 기다리는 메시지 서비스." />
   <meta name="theme-color" content="#f4efe5" />
+  <meta name="application-name" content="멀리멀리" />
+  <meta name="apple-mobile-web-app-title" content="멀리멀리" />
+  <meta name="msapplication-TileColor" content="#f4efe5" />
+  <meta name="msapplication-TileImage" content="./assets/mstile-150.png" />
   <meta name="color-scheme" content="light dark" />
   <link rel="canonical" href="https://USERNAME.github.io/REPOSITORY/" />
+  <link rel="icon" href="./assets/favicon.ico" sizes="any" />
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
-  <link rel="icon" href="./assets/favicon-32.png" sizes="32x32" />
+  <link rel="icon" href="./assets/favicon-16.png" sizes="16x16" type="image/png" />
+  <link rel="icon" href="./assets/favicon-32.png" sizes="32x32" type="image/png" />
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <meta property="og:title" content="멀리멀리 — 메시지가 여행이 되는 메신저" />
-  <meta property="og:description" content="전달자를 고르면 메시지가 실제 거리와 서비스 기준 속도만큼 여행합니다. 한 번 보낸 편지는 취소할 수 없습니다." />
+  <meta property="og:description" content="50가지 전달자 중 하나를 고르면 메시지가 거리, 최소 대기시간, 우회 계수에 따라 실제 시간 동안 여행합니다. 한 번 보낸 편지는 취소할 수 없습니다." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://USERNAME.github.io/REPOSITORY/" />
   <meta property="og:image" content="https://USERNAME.github.io/REPOSITORY/assets/og-image.png" />
   <meta property="og:site_name" content="멀리멀리" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="멀리멀리 — 메시지가 여행이 되는 메신저" />
-  <meta name="twitter:description" content="느리게, 멀리, 도착할 때까지. 기다림 자체가 콘텐츠가 되는 메시지." />
+  <meta name="twitter:description" content="느리게, 멀리, 도착할 때까지. 50가지 전달자와 타임캡슐로 기다림 자체가 콘텐츠가 되는 메시지." />
   <meta name="twitter:image" content="https://USERNAME.github.io/REPOSITORY/assets/og-image.png" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=3.0.0" />
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"WebApplication","name":"멀리멀리","applicationCategory":"CommunicationApplication","operatingSystem":"Any","description":"거리와 전달자 속도를 기반으로 도착 시간을 계산하는 메시지 웹서비스"}
+  {"@context":"https://schema.org","@type":"WebApplication","name":"멀리멀리","applicationCategory":"CommunicationApplication","operatingSystem":"Any","description":"거리와 50가지 전달자 규칙을 기반으로 실제 도착 시간을 계산하는 지연 메시지 웹서비스"}
   </script>
 </head>
 <body>
   <a class="skip-link" href="#main">본문으로 바로가기</a>
   <div id="app"></div>
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
-  <script src="./config.js"></script>
-  <script src="./app.js"></script>
+  <script src="./config.js?v=3.0.0"></script>
+  <script src="./couriers.generated.js?v=3.0.0"></script>
+  <script src="./app.js?v=3.0.0"></script>
 </body>
 </html>

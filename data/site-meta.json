@@ -1,0 +1,41 @@
+{
+  "serviceName": "멀리멀리",
+  "englishName": "MulliMulli",
+  "tagline": "느리게, 멀리, 마음을 전하세요.",
+  "title": "멀리멀리 — 메시지가 여행이 되는 메신저",
+  "shortDescription": "거리와 전달자 규칙에 따라 메시지가 실제 시간 동안 여행하는 위치 기반 지연 메신저.",
+  "metaDescription": "비둘기, 곤충, 종이비행기, 열차, 타임캡슐 등 50가지 전달자를 골라 마지막 위치 사이의 거리와 서비스 규칙만큼 기다리는 메시지 웹서비스.",
+  "githubDescription": "거리와 전달자 규칙에 따라 메시지가 실제 시간 동안 여행하는 위치 기반 지연 메신저. 50가지 전달자, 취소 불가 여정, GitHub Pages + Cloudflare Workers/D1.",
+  "githubTopics": [
+    "delayed-messaging",
+    "location-based",
+    "time-capsule",
+    "web-messaging",
+    "social-app",
+    "geolocation",
+    "github-pages",
+    "cloudflare-workers",
+    "cloudflare-d1",
+    "pwa",
+    "vanilla-javascript",
+    "static-webapp",
+    "korean-webapp",
+    "playful-ui",
+    "privacy-by-design"
+  ],
+  "socialPreview": {
+    "openGraph": "docs/assets/og-image.png",
+    "repository": "docs/assets/repository-social-preview.png"
+  },
+  "icons": {
+    "faviconSvg": "docs/assets/favicon.svg",
+    "faviconIco": "docs/assets/favicon.ico",
+    "favicon16": "docs/assets/favicon-16.png",
+    "favicon32": "docs/assets/favicon-32.png",
+    "favicon48": "docs/assets/favicon-48.png",
+    "appleTouch": "docs/assets/apple-touch-icon.png",
+    "icon192": "docs/assets/icon-192.png",
+    "icon512": "docs/assets/icon-512.png",
+    "maskable512": "docs/assets/maskable-icon-512.png"
+  }
+}

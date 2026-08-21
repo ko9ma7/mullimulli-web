@@ -14,17 +14,17 @@ site_url = f'https://{args.owner}.github.io/{args.repo}/'
 origin = f'https://{args.owner}.github.io'
 
 files = [
-    ROOT / 'site/index.html',
-    ROOT / 'site/config.js',
-    ROOT / 'site/robots.txt',
-    ROOT / 'site/sitemap.xml',
+    ROOT / 'docs/index.html',
+    ROOT / 'docs/config.js',
+    ROOT / 'docs/robots.txt',
+    ROOT / 'docs/sitemap.xml',
 ]
 for path in files:
     text = path.read_text(encoding='utf-8')
     text = text.replace('https://USERNAME.github.io/REPOSITORY/', site_url)
     path.write_text(text, encoding='utf-8')
 
-config = ROOT / 'site/config.js'
+config = ROOT / 'docs/config.js'
 text = config.read_text(encoding='utf-8')
 if args.api:
     import re
