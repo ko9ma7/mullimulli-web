@@ -13,7 +13,7 @@ function Refresh-Path {
 }
 
 Write-Host "============================================================"
-Write-Host " Mullimulli online account setup v3.9"
+Write-Host " Mullimulli online account setup v4.0"
 Write-Host " Project: $Root"
 Write-Host "============================================================"
 Write-Host ""
@@ -23,7 +23,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $Root "scripts\setup-online.mjs"))) 
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $Root "scripts\run-wrangler.ps1"))) {
-    throw "scripts/run-wrangler.ps1 was not found. Extract the v3.9 ZIP into a new folder."
+    throw "scripts/run-wrangler.ps1 was not found. Extract the v4.0 ZIP into a new folder."
 }
 
 if (-not (Test-Command "node.exe")) {

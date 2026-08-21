@@ -1,32 +1,39 @@
-멀리멀리 v3.9 - 온라인 계정 자동 연결
+멀리멀리 v4.0 - 가장 쉬운 업데이트/배포 방법
 
-이 버전은 Worker/D1만 설정하고 끝나지 않습니다.
-SETUP_ONLINE.cmd가 최신 프로젝트(.github/workflows/deploy.yml 포함)를
-ko9ma7/mullimulli-web 저장소에 자동 업로드한 뒤 GitHub Pages 배포까지 기다립니다.
+중요: GitHub 저장소에 docs 파일이 보인다고 해서 GitHub Pages가 새 버전으로 배포된 것은 아닙니다.
+특히 .github/workflows/deploy.yml이 저장소에 없으면 GitHub Actions 방식 Pages는 새 배포가 실행되지 않습니다.
 
+이미 온라인 계정(Cloudflare D1/Worker)을 연결한 경우
 1. ZIP을 새 폴더에 압축 해제
-   예: C:\worker\mullimulli-web-v3.9
-2. SETUP_ONLINE.cmd 더블클릭
-3. Cloudflare/GitHub 브라우저 승인이 뜨면 승인
-4. 끝에 아래 문구가 나올 때까지 창을 닫지 않기
-   - GitHub Pages 배포 성공
-   - GitHub Pages가 Worker API를 사용하는 온라인 모드로 전환되었습니다.
-   - Setup finished successfully.
+2. PUBLISH_UPDATE.cmd 더블클릭
+3. 기존 Cloudflare/D1/Worker를 재사용하고 최신 프로젝트 + .github/workflows/deploy.yml을 GitHub에 올립니다.
+4. GitHub Pages Actions가 끝날 때까지 기다립니다.
+5. 자동으로 열린 사이트를 확인합니다.
 
-사이트에서 확인할 것
-- 상단에 "● 온라인" 표시
-- 친구 화면에 "● 온라인 계정 연결됨" 표시
-- "로컬 데모"가 보이면 아직 온라인 배포가 반영되지 않은 상태
+처음 온라인 계정을 연결하는 경우
+- SETUP_ONLINE.cmd 더블클릭
+- Cloudflare/GitHub 브라우저 승인이 뜰 때만 승인
 
-중요: 이전 로컬 데모에서 만든 @아이디는 Cloudflare D1 계정이 아닙니다.
-온라인 모드로 바뀐 뒤 각 브라우저/휴대폰에서 한 번씩 다시 가입해야 서로 검색됩니다.
+진짜 v4.0 배포 확인
+https://ko9ma7.github.io/mullimulli-web/version.txt
+위 주소에서 아래 문구가 보여야 합니다.
 
-편지 버튼이 켜지는 조건
-1. 두 계정이 온라인 서버에 가입되어 있음
-2. 서로 친구로 추가되어 있음
-3. 보내는 사람과 받는 사람 모두 "위치 업데이트"를 한 번 실행함
-4. 거리 확인이 성공함
+MULLIMULLI 4.0.0 — concept-aligned UI — 2026-08-21
 
-v3.9은 상대가 위치 업데이트 "시각"을 비공개로 해도 서버에서 거리 계산이 되면
-편지를 보낼 수 있도록 수정했습니다. 보내기 화면의 "거리/위치 다시 확인" 버튼으로
-상대가 방금 위치를 갱신한 상태를 즉시 다시 확인할 수 있습니다.
+사이트 화면에서도 Footer에 v4.0.0이 표시됩니다.
+version.txt가 4.0.0이 아니면 브라우저 캐시 문제가 아니라 GitHub Pages 배포 자체가 아직 이전 버전입니다.
+
+PC v4.0 핵심 화면
+- Hero 오른쪽에 프로필/친구 사이드바 정렬
+- 왼쪽: 받는 사람 + 메시지
+- 오른쪽: 추천 전달자 6개
+- 하단 요약: D-Day + 남은 시간 + 정확한 도착 날짜/시간 + 발송
+- 진행 중 여정: 데스크톱 3열 카드
+
+여정 탭
+- 출발: 년/월/일/요일/시간
+- 도착 예정: 년/월/일/요일/시간
+- D-Day
+- 남은 시간
+- 총 소요시간
+- 진행률

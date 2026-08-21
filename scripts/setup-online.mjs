@@ -16,7 +16,7 @@ const configFile = join(root, 'docs', 'config.js');
 const stateFile = join(root, '.setup-online-state.json');
 const DB_NAME = 'mullimulli-db';
 const WORKER_NAME = 'mullimulli-api';
-const VERSION = '3.9.0';
+const VERSION = '4.0.0';
 const DEFAULT_GITHUB_REPO = 'ko9ma7/mullimulli-web';
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -372,6 +372,7 @@ function publishProjectToGitHub(repo, branch) {
   ghCapture(['auth', 'setup-git'], { allowFailure: true });
 
   const temp = mkdtempSync(join(tmpdir(), 'mullimulli-publish-'));
+  let pushed = false;
   try {
     const cloneUrl = `https://github.com/${repo}.git`;
     const clone = gitCapture(['clone', cloneUrl, temp], { allowFailure: true });
@@ -384,7 +385,8 @@ function publishProjectToGitHub(repo, branch) {
     const managed = [
       '.github','docs','worker','scripts','data','design','qa','site',
       'README.md','START_HERE.txt','ONLINE_ACCOUNT_SETUP_WINDOWS.md','SITE_METADATA.md',
-      'SETUP_ONLINE.cmd','온라인계정_자동설정.cmd','LICENSE','.gitignore','.nojekyll'
+      'GITHUB_UPLOAD_GUIDE.md','PUBLISH_UPDATE.cmd','DEPLOYMENT_CHECK.md','CHANGELOG-v4.0.md',
+      'CHANGELOG-v3.9.md','SETUP_ONLINE.cmd','온라인계정_자동설정.cmd','LICENSE','.gitignore','.nojekyll'
     ];
     for (const name of managed) rmSync(join(temp, name), { recursive: true, force: true });
     copyProjectTree(temp);
@@ -405,6 +407,7 @@ function publishProjectToGitHub(repo, branch) {
     if (String(status.stdout || '').trim()) {
       git(['commit', '-m', `Deploy Mullimulli online v${VERSION}`], { cwd: temp });
       git(['push', 'origin', `HEAD:${branch}`], { cwd: temp });
+      pushed = true;
       ok('최신 프로젝트와 deploy.yml을 GitHub에 업로드했습니다.');
     } else {
       ok('GitHub 저장소가 이미 최신 프로젝트와 같습니다.');
@@ -412,23 +415,32 @@ function publishProjectToGitHub(repo, branch) {
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }
+  return pushed;
 }
 
 async function verifyPagesOnline(repo, workerUrl) {
   const [owner, name] = repo.split('/');
-  const page = `https://${owner}.github.io/${name}/config.js`;
-  for (let i = 0; i < 24; i++) {
+  const base = `https://${owner}.github.io/${name}`;
+  const configPage = `${base}/config.js`;
+  const versionPage = `${base}/version.txt`;
+  for (let i = 0; i < 36; i++) {
     try {
-      const res = await fetch(`${page}?setup=${Date.now()}`, { cache: 'no-store' });
-      const text = await res.text();
-      if (res.ok && text.includes(workerUrl)) {
-        ok('GitHub Pages가 Worker API를 사용하는 온라인 모드로 전환되었습니다.');
+      const stamp = Date.now();
+      const [configRes, versionRes] = await Promise.all([
+        fetch(`${configPage}?setup=${stamp}`, { cache: 'no-store' }),
+        fetch(`${versionPage}?setup=${stamp}`, { cache: 'no-store' }),
+      ]);
+      const [configText, versionText] = await Promise.all([configRes.text(), versionRes.text()]);
+      const apiOk = configRes.ok && configText.includes(workerUrl);
+      const versionOk = versionRes.ok && versionText.includes(`MULLIMULLI ${VERSION}`);
+      if (apiOk && versionOk) {
+        ok(`GitHub Pages 온라인 연결 + 화면 버전 v${VERSION} 반영을 확인했습니다.`);
         return true;
       }
     } catch {}
-    await new Promise(r => setTimeout(r, 2500));
+    await new Promise(r => setTimeout(r, 3000));
   }
-  warn('GitHub Pages 배포는 완료됐지만 온라인 config 확인이 아직 지연되고 있습니다. 잠시 후 새로고침해 주세요.');
+  warn(`GitHub Pages 배포는 끝났지만 version.txt에서 v${VERSION}을 아직 확인하지 못했습니다.`);
   return false;
 }
 
@@ -441,20 +453,24 @@ async function configureGitHub(repo, workerUrl) {
   ok('GitHub Actions Variable 연결 완료');
   ensurePages(ri.repo);
 
-  // v3.9: ZIP으로 실행한 경우에도 사용자가 Git 명령을 따로 입력하지 않도록
+  // v4.0: ZIP으로 실행한 경우에도 사용자가 Git 명령을 따로 입력하지 않도록
   // 현재 프로젝트 전체를 원격 저장소에 자동 업로드한다. 이 단계가 빠지면
   // Worker/D1은 살아 있어도 GitHub Pages가 apiBaseUrl:""인 로컬 데모로 남는다.
-  publishProjectToGitHub(ri.repo, ri.branch);
+  const pushed = publishProjectToGitHub(ri.repo, ri.branch);
 
-  const trigger = ghCapture(['workflow', 'run', 'deploy.yml', '-R', ri.repo, '--ref', ri.branch], { allowFailure: true });
-  if (trigger.status !== 0) {
-    const detail = `${trigger.stderr || trigger.stdout || ''}`.trim();
-    throw new Error(`deploy.yml 실행을 시작하지 못했습니다.${detail ? `\n${detail}` : ''}`);
+  if (pushed) {
+    ok('main 브랜치 push가 Deploy GitHub Pages workflow를 자동 시작합니다.');
+  } else {
+    const trigger = ghCapture(['workflow', 'run', 'deploy.yml', '-R', ri.repo, '--ref', ri.branch], { allowFailure: true });
+    if (trigger.status !== 0) {
+      const detail = `${trigger.stderr || trigger.stdout || ''}`.trim();
+      throw new Error(`deploy.yml 실행을 시작하지 못했습니다.${detail ? `\n${detail}` : ''}`);
+    }
+    process.stdout.write(trigger.stdout || '');
+    ok('변경 파일이 없어 GitHub Pages 재배포를 수동 요청했습니다.');
   }
-  process.stdout.write(trigger.stdout || '');
-  ok('GitHub Pages 재배포 요청 완료');
 
-  await new Promise(r => setTimeout(r, 3000));
+  await new Promise(r => setTimeout(r, 4500));
   const latest = ghCapture(['run', 'list', '-R', ri.repo, '--workflow', 'deploy.yml', '--limit', '3', '--json', 'databaseId,status,conclusion,url,event,createdAt'], { allowFailure: true });
   const arr = parseJsonLoose(latest.stdout);
   const runInfo = Array.isArray(arr) ? arr.find(x => x?.databaseId) : null;
@@ -474,7 +490,7 @@ async function configureGitHub(repo, workerUrl) {
 async function main() {
   console.log('');
   line('═');
-  console.log('  멀리멀리 온라인 계정 자동 연결 v3.9');
+  console.log(`  멀리멀리 온라인 계정/화면 자동 배포 v${VERSION}`);
   console.log('  이 창 하나로 Cloudflare D1 + Worker + GitHub Pages를 연결합니다.');
   line('═');
   info(`프로젝트: ${root}`);
@@ -555,7 +571,8 @@ async function main() {
   console.log(`API:     ${workerUrl}`);
   console.log(`DB:      ${DB_NAME}`);
   console.log('');
-  console.log('사이트의 친구 화면에서 "온라인 계정 연결됨"이 표시되면 성공입니다.');
+  console.log(`최종 확인: ${pagesUrl}version.txt 에 MULLIMULLI ${VERSION} 이 표시되어야 합니다.`);
+  console.log('사이트의 친구 화면에서 "온라인 계정 연결됨"이 표시되면 온라인 연결도 성공입니다.');
   console.log('그 후 서로 다른 브라우저/휴대폰에서 새 계정을 각각 만든 뒤 검색하면 됩니다.');
   console.log('');
   if (process.platform === 'win32') {

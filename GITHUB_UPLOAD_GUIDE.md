@@ -1,70 +1,72 @@
-# ko9ma7/mullimulli-web 업로드 가이드
+# 멀리멀리 v4.0 GitHub 업로드·배포 안내
 
-이 ZIP의 **내용 전체**를 GitHub Repository `ko9ma7/mullimulli-web`의 루트에 올리면 됩니다. `docs/`만 따로 올리면 Worker·자동설정·Actions가 빠지므로 프로젝트 전체를 업로드하세요.
+대상 저장소: `ko9ma7/mullimulli-web`
 
-## 가장 쉬운 방법
+## 먼저 알아둘 점
 
-이미 온라인 Worker/D1을 연결한 PC라면 프로젝트 루트의:
+**Repository에 파일이 올라간 것과 GitHub Pages에 새 사이트가 배포된 것은 서로 다른 단계입니다.**
 
-```text
-SETUP_ONLINE.cmd
-```
+GitHub 웹 화면에서 `docs/app.js`가 최신이어도, `.github/workflows/deploy.yml`이 없거나 Actions가 실행되지 않으면 실제 사이트는 이전 배포본을 계속 보여줍니다.
 
-을 실행하면 최신 프로젝트를 `ko9ma7/mullimulli-web`에 업로드하고 GitHub Pages Workflow까지 실행하도록 구성되어 있습니다.
+## 권장: 한 번에 업데이트
 
-## Git으로 직접 업로드할 경우
-
-```bash
-git init
-git branch -M main
-git remote remove origin 2>nul || true
-git remote add origin https://github.com/ko9ma7/mullimulli-web.git
-git add .
-git commit -m "Update MulliMulli v3.9 send experience"
-git push -u origin main --force-with-lease
-```
-
-기존 저장소를 clone해서 수정 중이라면 `git init`, `remote add`는 필요 없습니다.
-
-```bash
-git add .
-git commit -m "Update MulliMulli v3.9 send experience"
-git push origin main
-```
-
-## 반드시 함께 올라가야 하는 항목
+이미 온라인 연결을 마쳤다면 프로젝트 루트의 다음 파일을 더블클릭합니다.
 
 ```text
-.github/workflows/deploy.yml
-data/
-docs/
-scripts/
-worker/
-SETUP_ONLINE.cmd
-README.md
-SITE_METADATA.md
-GITHUB_UPLOAD_GUIDE.md
-LICENSE
+PUBLISH_UPDATE.cmd
 ```
 
-## GitHub Repository 설정
+이 파일은 기존 `SETUP_ONLINE.cmd`를 사용해:
 
-자세한 Description, Website, Topics, Social Preview, Actions Variable 값은:
+1. 기존 D1/Worker 재사용
+2. `.github/workflows/deploy.yml` 포함 최신 프로젝트 업로드
+3. `MULLIMULLI_API_BASE_URL` 확인
+4. GitHub Pages workflow 실행
+5. Actions 완료 대기
+6. 실제 Pages의 `config.js`와 `version.txt` 확인
+
+까지 수행합니다.
+
+## 수동 업로드를 할 경우 반드시 확인
+
+Repository 최상단에 아래 폴더가 보여야 합니다.
 
 ```text
-.github/REPOSITORY_SETUP.md
+.github/
+  workflows/
+    deploy.yml
 ```
 
-파일에 정리되어 있습니다.
+GitHub 화면에서 `.github` 폴더가 보이지 않으면 **GitHub Actions 배포 파일이 빠진 것**입니다.
 
-## 배포 확인
+그 다음 Repository → **Actions → Deploy GitHub Pages**에서 최신 실행이 녹색으로 완료되어야 합니다.
 
-GitHub → Actions → `Deploy GitHub Pages`가 초록색으로 완료되어야 합니다.
+## 최종 버전 확인
 
-배포 주소:
+아래 주소를 직접 엽니다.
 
 ```text
-https://ko9ma7.github.io/mullimulli-web/
+https://ko9ma7.github.io/mullimulli-web/version.txt
 ```
 
-사이트 상단이 `● 온라인`으로 표시되면 Worker API까지 연결된 상태입니다.
+v4.0이면 다음 문자열이 표시됩니다.
+
+```text
+MULLIMULLI 4.0.0 — concept-aligned UI — 2026-08-21
+```
+
+이 값이 4.0.0이 아니면 새 UI가 아직 Pages에 배포되지 않은 것입니다.
+
+## Pages 설정
+
+Repository → Settings → Pages → Build and deployment → **Source: GitHub Actions**
+
+## Actions Variable
+
+Repository → Settings → Secrets and variables → Actions → Variables
+
+```text
+MULLIMULLI_API_BASE_URL=https://mullimulli-api.mullimulli-api.workers.dev
+```
+
+Worker 주소가 다르면 본인 Worker URL을 사용합니다.

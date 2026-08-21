@@ -1,0 +1,71 @@
+{
+  "project": "MulliMulli",
+  "version": "4.0.0",
+  "generated_at": "2026-08-21T15:39:00+09:00",
+  "checks": {
+    "node_check:docs/app.js": {
+      "ok": true,
+      "stderr": ""
+    },
+    "node_check:docs/couriers.generated.js": {
+      "ok": true,
+      "stderr": ""
+    },
+    "node_check:worker/src/index.js": {
+      "ok": true,
+      "stderr": ""
+    },
+    "node_check:worker/src/couriers.generated.js": {
+      "ok": true,
+      "stderr": ""
+    },
+    "node_check:scripts/setup-online.mjs": {
+      "ok": true,
+      "stderr": ""
+    },
+    "required_files": {
+      "ok": true,
+      "missing": []
+    },
+    "index_version_refs": {
+      "ok": true
+    },
+    "version_txt": {
+      "ok": true,
+      "value": "MULLIMULLI 4.0.0 — concept-aligned UI — 2026-08-21"
+    },
+    "workflow": {
+      "ok": true,
+      "name": "Deploy GitHub Pages"
+    },
+    "ui_source_markers": {
+      "ok": true,
+      "markers": {
+        "delivery-summary": true,
+        "remainingUntil": true,
+        "dDayLabel": true,
+        "fmtJourneyDay": true,
+        "journey-compact": true,
+        "dashboard-main": true
+      }
+    },
+    "qa_screenshots": {
+      "ok": true,
+      "files": [
+        "qa/desktop-v4.0.png",
+        "qa/mobile-v4.0.png",
+        "qa/journeys-v4.0.png"
+      ]
+    },
+    "responsive": {
+      "desktop_width_checked": 1600,
+      "mobile_width_checked": 390,
+      "horizontal_overflow": 0
+    },
+    "deployment_guard": {
+      "ok": true,
+      "note": "setup verifies both Worker config and deployed version.txt"
+    }
+  },
+  "all_static_checks_passed": true
+}
