@@ -1,1 +1,1 @@
-MULLIMULLI 4.2.0 — cross-device accounts + incoming journey alerts — 2026-08-22
+MULLIMULLI 4.3.0 — online DB health + repair — 2026-08-22

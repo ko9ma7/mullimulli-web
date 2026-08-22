@@ -12,9 +12,9 @@ export default {
     if(request.method==='OPTIONS') return new Response(null,{status:204,headers:corsHeaders(corsOrigin)});
     try{
       const url=new URL(request.url), p=url.pathname.replace(/\/$/,'');
-      if(p==='/api/health'&&request.method==='GET') return json({ok:true,service:'mullimulli-api',version:'4.2.0'},200,corsOrigin);
-      if(p==='/api/signup'&&request.method==='POST') return withCors(await signup(request,env),corsOrigin);
-      if(p==='/api/login'&&request.method==='POST') return withCors(await login(request,env),corsOrigin);
+      if(p==='/api/health'&&request.method==='GET') return withCors(await health(env),corsOrigin);
+      if(p==='/api/signup'&&request.method==='POST') return withCors(await authSafe(()=>signup(request,env),'SIGNUP'),corsOrigin);
+      if(p==='/api/login'&&request.method==='POST') return withCors(await authSafe(()=>login(request,env),'LOGIN'),corsOrigin);
       const user=await authenticate(request,env);
       if(!user) return json({error:'로그인이 필요합니다.'},401,corsOrigin);
       if(p==='/api/logout'&&request.method==='POST') return withCors(await logout(request,env),corsOrigin);
@@ -30,10 +30,58 @@ export default {
       return json({error:'지원하지 않는 경로입니다.'},404,corsOrigin);
     }catch(e){
       console.error(e);
-      return json({error:'서버에서 요청을 처리하지 못했습니다.'},500,corsOrigin);
+      return json({error:'서버에서 요청을 처리하지 못했습니다.',code:'SERVER_ERROR'},500,corsOrigin);
     }
   }
 };
+
+
+async function authSafe(fn,kind){
+  try{return await fn();}
+  catch(e){
+    console.error(kind,e);
+    const m=String(e?.message||e||'');
+    const schema=/no such (?:table|column)|has no column|SQLITE_ERROR|D1_ERROR/i.test(m);
+    return json({
+      error:schema?'온라인 계정 DB 점검이 필요합니다. REPAIR_ONLINE.cmd를 실행해 주세요.':'서버에서 계정 요청을 처리하지 못했습니다.',
+      code:schema?'DB_SCHEMA_INCOMPLETE':`${kind}_FAILED`
+    },500);
+  }
+}
+
+async function health(env){
+  const requiredTables=['users','sessions','friends','messages'];
+  const requiredUserColumns=['id','handle','nickname','avatar','bio','discoverable','show_location_age','allow_friend_add','password_salt','password_hash','last_lat','last_lon','last_location_at','created_at'];
+  try{
+    if(!env.DB) return json({ok:false,service:'mullimulli-api',version:'4.3.0',database:{ok:false},schema:{ok:false},code:'DB_BINDING_MISSING'},503);
+    const tableRows=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+    const tables=new Set((tableRows.results||[]).map(r=>String(r.name||'')));
+    const missingTables=requiredTables.filter(t=>!tables.has(t));
+    let missingUserColumns=[...requiredUserColumns];
+    if(tables.has('users')){
+      const cols=await env.DB.prepare('PRAGMA table_info(users)').all();
+      const names=new Set((cols.results||[]).map(r=>String(r.name||'')));
+      missingUserColumns=requiredUserColumns.filter(c=>!names.has(c));
+    }
+    const schemaOk=missingTables.length===0&&missingUserColumns.length===0;
+    let userCount=null;
+    if(schemaOk){
+      const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first();
+      userCount=Number(count?.n||0);
+    }
+    return json({
+      ok:schemaOk,
+      service:'mullimulli-api',
+      version:'4.3.0',
+      database:{ok:true,userCount},
+      schema:{ok:schemaOk,missingTables,missingUserColumns},
+      ...(schemaOk?{}:{code:'DB_SCHEMA_INCOMPLETE'})
+    },schemaOk?200:503);
+  }catch(e){
+    console.error('health',e);
+    return json({ok:false,service:'mullimulli-api',version:'4.3.0',database:{ok:false},schema:{ok:false},code:'DB_UNAVAILABLE'},503);
+  }
+}
 
 function corsHeaders(origin){
   const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'};

@@ -1,7 +1,7 @@
 const CONFIG = window.MULLIMULLI_CONFIG || {};
 const API_BASE = (CONFIG.apiBaseUrl || '').replace(/\/$/, '');
 const DEMO_SCALE = Math.max(1, Number(CONFIG.demoTimeAcceleration || 1));
-const BUILD_VERSION = CONFIG.buildVersion || '4.2.0';
+const BUILD_VERSION = CONFIG.buildVersion || '4.3.0';
 const STORE_KEY = 'mullimulli.demo.v2';
 const SESSION_KEY = 'mullimulli.session.v1';
 const THEME_KEY = 'mullimulli.theme.v1';
@@ -321,11 +321,11 @@ async function checkApiHealth(){
   try{
     const res=await fetch(`${API_BASE}/api/health`,{cache:'no-store'});
     const data=await res.json().catch(()=>null);
-    if(!res.ok||!data?.ok) throw new Error('health check failed');
-    state.apiHealth=data;
+    state.apiHealth=data||{ok:false,code:'INVALID_HEALTH_RESPONSE',error:'상태 응답을 읽지 못했습니다.'};
+    if(!res.ok||!data?.ok) return state.apiHealth;
     return data;
   }catch(e){
-    state.apiHealth={ok:false,error:e?.message||'API 연결 실패'};
+    state.apiHealth={ok:false,code:'API_UNREACHABLE',error:e?.message||'API 연결 실패'};
     return state.apiHealth;
   }
 }
@@ -357,7 +357,13 @@ function apiConnectionProblem(){
 }
 function renderConnectionError(){
   const app=document.querySelector('#app');
-  app.innerHTML=`<main class="auth-wrap"><section class="auth-card connection-error-card"><div class="auth-visual"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><h1>온라인 서버 연결이<br><span style="color:var(--danger)">필요합니다.</span></h1><p>공개 사이트에서는 로컬 계정으로 대체하지 않습니다. 그래야 다른 컴퓨터와 휴대폰에서도 같은 친구와 편지를 볼 수 있습니다.</p></div><div class="auth-form"><h2>온라인 연결을 확인해 주세요</h2><p>현재 API 주소: <code>${escapeHtml(API_BASE||'설정되지 않음')}</code></p><div class="connection-banner local"><strong>다른 기기 검색 보호</strong><span>API가 연결되지 않은 상태에서 가입하면 이 브라우저에만 계정이 생길 수 있어, 공개 사이트에서는 가입을 차단했습니다.</span></div><button class="btn btn-primary" id="retry-api" style="width:100%">다시 연결 확인</button></div></section></main>`;
+  const schemaProblem=state.apiHealth?.code==='DB_SCHEMA_INCOMPLETE'||state.apiHealth?.code==='DB_UNAVAILABLE'||state.apiHealth?.code==='DB_BINDING_MISSING';
+  const missing=[...(state.apiHealth?.schema?.missingTables||[]),...(state.apiHealth?.schema?.missingUserColumns||[])];
+  const title=schemaProblem?'온라인 DB 점검이 필요합니다.':'온라인 서버 연결이 필요합니다.';
+  const detail=schemaProblem
+    ? `Worker에는 연결됐지만 계정 DB가 준비되지 않았습니다.${missing.length?` 누락: ${escapeHtml(missing.join(', '))}`:''} v4.3의 REPAIR_ONLINE.cmd를 한 번 실행하면 기존 계정/편지를 지우지 않고 복구합니다.`
+    : '공개 사이트에서는 로컬 계정으로 대체하지 않습니다. 그래야 다른 컴퓨터와 휴대폰에서도 같은 친구와 편지를 볼 수 있습니다.';
+  app.innerHTML=`<main class="auth-wrap"><section class="auth-card connection-error-card"><div class="auth-visual"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><h1>${title.replace(' ','<br>')}</h1><p>${detail}</p></div><div class="auth-form"><h2>${schemaProblem?'데이터베이스 복구가 필요해요':'온라인 연결을 확인해 주세요'}</h2><p>현재 API 주소: <code>${escapeHtml(API_BASE||'설정되지 않음')}</code></p><div class="connection-banner local"><strong>${schemaProblem?'계정 데이터 보호':'다른 기기 검색 보호'}</strong><span>${detail}</span></div><button class="btn btn-primary" id="retry-api" style="width:100%">다시 연결 확인</button></div></section></main>`;
   document.querySelector('#retry-api').onclick=async()=>{await checkApiHealth(); initApp();};
 }
 async function login(handle,pin){
