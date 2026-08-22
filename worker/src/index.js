@@ -3,6 +3,8 @@ import { COURIERS } from './couriers.generated.js';
 const AVATARS=['🦊','🐰','🐱','🐻','🦝','🐶','🐼','🐿️','🦉','🐧','🐸','🦦','🐯','🐨','🦄','🌙','⭐','🌿'];
 const enc=new TextEncoder();
 const dec=new TextDecoder();
+const PASSWORD_KDF = 'PBKDF2-SHA-256';
+const PASSWORD_KDF_ITERATIONS = 100000; // Cloudflare workerd accepts at most 100,000 PBKDF2 iterations.
 
 export default {
   async fetch(request,env){
@@ -42,9 +44,10 @@ async function authSafe(fn,kind){
     console.error(kind,e);
     const m=String(e?.message||e||'');
     const schema=/no such (?:table|column)|has no column|SQLITE_ERROR|D1_ERROR/i.test(m);
+    const pbkdf=/PBKDF2|iterations|OperationError/i.test(m);
     return json({
-      error:schema?'온라인 계정 DB 점검이 필요합니다. REPAIR_ONLINE.cmd를 실행해 주세요.':'서버에서 계정 요청을 처리하지 못했습니다.',
-      code:schema?'DB_SCHEMA_INCOMPLETE':`${kind}_FAILED`
+      error:schema?'온라인 계정 DB 점검이 필요합니다. REPAIR_ONLINE.cmd를 실행해 주세요.':pbkdf?'비밀번호 처리 설정 오류입니다. Worker v4.4 이상으로 업데이트해 주세요.':'서버에서 계정 요청을 처리하지 못했습니다.',
+      code:schema?'DB_SCHEMA_INCOMPLETE':pbkdf?'PASSWORD_KDF_ERROR':`${kind}_FAILED`
     },500);
   }
 }
@@ -53,7 +56,7 @@ async function health(env){
   const requiredTables=['users','sessions','friends','messages'];
   const requiredUserColumns=['id','handle','nickname','avatar','bio','discoverable','show_location_age','allow_friend_add','password_salt','password_hash','last_lat','last_lon','last_location_at','created_at'];
   try{
-    if(!env.DB) return json({ok:false,service:'mullimulli-api',version:'4.3.0',database:{ok:false},schema:{ok:false},code:'DB_BINDING_MISSING'},503);
+    if(!env.DB) return json({ok:false,service:'mullimulli-api',version:'4.4.0',database:{ok:false},schema:{ok:false},code:'DB_BINDING_MISSING'},503);
     const tableRows=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
     const tables=new Set((tableRows.results||[]).map(r=>String(r.name||'')));
     const missingTables=requiredTables.filter(t=>!tables.has(t));
@@ -72,14 +75,15 @@ async function health(env){
     return json({
       ok:schemaOk,
       service:'mullimulli-api',
-      version:'4.3.0',
+      version:'4.4.0',
       database:{ok:true,userCount},
       schema:{ok:schemaOk,missingTables,missingUserColumns},
+      passwordKdf:{algorithm:PASSWORD_KDF,iterations:PASSWORD_KDF_ITERATIONS},
       ...(schemaOk?{}:{code:'DB_SCHEMA_INCOMPLETE'})
     },schemaOk?200:503);
   }catch(e){
     console.error('health',e);
-    return json({ok:false,service:'mullimulli-api',version:'4.3.0',database:{ok:false},schema:{ok:false},code:'DB_UNAVAILABLE'},503);
+    return json({ok:false,service:'mullimulli-api',version:'4.4.0',database:{ok:false},schema:{ok:false},code:'DB_UNAVAILABLE'},503);
   }
 }
 
@@ -206,7 +210,7 @@ async function listMessages(env,user){
 function messageStatus(m){const t=now();if(m.failure_at&&t>=m.failure_at)return'failed';if(t>=m.arrival_at)return'delivered';return'transit';}
 function haversine(lat1,lon1,lat2,lon2){const R=6371,r=x=>x*Math.PI/180,dLat=r(lat2-lat1),dLon=r(lon2-lon1),a=Math.sin(dLat/2)**2+Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(dLon/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
 
-async function hashPassword(pin,salt){const key=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:210000},key,256);return new Uint8Array(bits);}
+async function hashPassword(pin,salt){const key=await crypto.subtle.importKey('raw',enc.encode(pin),'PBKDF2',false,['deriveBits']);const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:PASSWORD_KDF_ITERATIONS},key,256);return new Uint8Array(bits);}
 function timingSafeEqual(a,b){if(a.length!==b.length)return false;let v=0;for(let i=0;i<a.length;i++)v|=a[i]^b[i];return v===0;}
 function randomBytes(n){const a=new Uint8Array(n);crypto.getRandomValues(a);return a;}
 async function sha256hex(v){const d=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(v)));return [...d].map(x=>x.toString(16).padStart(2,'0')).join('');}

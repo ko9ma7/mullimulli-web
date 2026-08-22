@@ -1,1 +1,1 @@
-MULLIMULLI 4.3.0 — online DB health + repair — 2026-08-22
+MULLIMULLI 4.4.0 — Cloudflare PBKDF2 compatibility fix — 2026-08-22

@@ -1,4 +1,4 @@
-# 멀리멀리 v4.3 온라인 계정 서버 복구
+# 멀리멀리 v4.4 온라인 계정 서버 복구
 
 ## 현재 증상
 
@@ -10,20 +10,20 @@ v4.2의 `/api/health`는 Worker가 응답하는지만 확인했고 D1 계정 DB�
 
 또한 `UPDATE_V4_2.cmd`는 Worker와 GitHub Pages 업데이트용으로, D1 스키마 복구를 수행하지 않았습니다.
 
-## v4.3 복구 방법
+## v4.4 복구 방법
 
-1. v4.3 ZIP을 새 폴더에 압축 해제합니다.
-2. `UPDATE_V4_3.cmd`를 더블클릭합니다.
+1. v4.4 ZIP을 새 폴더에 압축 해제합니다.
+2. `UPDATE_V4_4.cmd`를 더블클릭합니다.
 3. Cloudflare 또는 GitHub 승인 창이 뜨면 승인합니다.
 4. 스크립트가 다음을 자동으로 수행합니다.
    - 기존 `mullimulli-db` 연결 확인
    - 누락 테이블/안전한 users 컬럼 보완
    - 기존 계정/친구/편지 유지
-   - Worker v4.3 재배포
+   - Worker v4.4 재배포
    - `/api/health`에서 D1 실제 검사
    - 임시 계정으로 실제 가입 + 로그인 API 테스트
    - 임시 계정 삭제
-   - GitHub Pages v4.3 배포
+   - GitHub Pages v4.4 배포
 5. 마지막에 SUCCESS가 표시된 뒤 사이트에서 `Ctrl+F5`를 누릅니다.
 
 ## 성공 확인
@@ -37,7 +37,7 @@ API health 주소:
 ```json
 {
   "ok": true,
-  "version": "4.3.0",
+  "version": "4.4.0",
   "database": { "ok": true },
   "schema": { "ok": true }
 }
@@ -47,7 +47,7 @@ API health 주소:
 
 `https://ko9ma7.github.io/mullimulli-web/version.txt`
 
-`MULLIMULLI 4.3.0`이 보여야 합니다.
+`MULLIMULLI 4.4.0`이 보여야 합니다.
 
 ## 계정 주의
 

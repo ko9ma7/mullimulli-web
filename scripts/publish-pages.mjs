@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/(\w:)/, '$1').replace(/%20/g, ' ');
-const VERSION = '4.3.0';
+const VERSION = '4.4.0';
 const DEFAULT_REPO = 'ko9ma7/mullimulli-web';
 
 function cmd(name,args,{cwd=root,allowFailure=false,stdio='pipe'}={}){
@@ -153,7 +153,7 @@ async function main(){
   await waitRun(ri.repo);
   await verifyLive(ri.repo);
   console.log('\n============================================================');
-  console.log(' 완료: GitHub 저장소와 실제 Pages가 같은 v4.3입니다.');
+  console.log(' 완료: GitHub 저장소와 실제 Pages가 같은 v4.4입니다.');
   console.log('============================================================');
 }
 main().catch(e=>{fail(e?.message||String(e)); process.exitCode=1;});

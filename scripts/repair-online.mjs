@@ -97,18 +97,20 @@ async function signupSelfTest(){
 async function health(){
   const res=await fetch(`${WORKER_URL}/api/health`,{cache:'no-store'});const data=await res.json().catch(()=>null);
   if(!res.ok||!data?.ok) throw new Error(`배포 후 health 실패: ${JSON.stringify(data)}`);
-  ok(`Worker + D1 health 정상 (v${data.version}, users ${data.database?.userCount??'?'})`);
+  if(Number(data?.passwordKdf?.iterations)!==100000) throw new Error(`Worker가 아직 잘못된 비밀번호 KDF 설정을 사용합니다: ${JSON.stringify(data?.passwordKdf)}`);
+  ok(`Worker + D1 health 정상 (v${data.version}, users ${data.database?.userCount??'?'}, PBKDF2 ${data.passwordKdf.iterations}회)`);
 }
 
 try{
   section('1. Cloudflare 로그인');prepareAuth();
   section('2. 기존 D1 확인');const db=getDb();patchWrangler(db.id);ok(`${DB_NAME} (${db.id})`);
   section('3. D1 스키마 무손실 복구');ensureSchema();validateSchema();
-  section('4. Worker v4.3 재배포');wrangler(['deploy']);
+  section('4. Worker v4.4 재배포 (PBKDF2 100,000회 호환 수정)');wrangler(['deploy']);
   section('5. 실제 API + D1 상태 확인');await health();
   section('6. 실제 가입/로그인 동작 확인');await signupSelfTest();
   console.log('\n============================================================');
   console.log('SUCCESS: 온라인 계정 서버 복구가 끝났습니다.');
+  console.log('PBKDF2 210,000회 오류를 Cloudflare 호환 100,000회로 수정했습니다.');
   console.log('기존 계정/친구/편지는 삭제하지 않았습니다.');
   console.log('사이트에서 Ctrl+F5 후 로그인/가입을 다시 시도하세요.');
   console.log('============================================================\n');
