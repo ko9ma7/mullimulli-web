@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/(\w:)/, '$1').replace(/%20/g, ' ');
-const VERSION = '4.1.0';
+const VERSION = '4.2.0';
 const DEFAULT_REPO = 'ko9ma7/mullimulli-web';
 
 function cmd(name,args,{cwd=root,allowFailure=false,stdio='pipe'}={}){
@@ -70,7 +70,7 @@ function uploadProject(repo,branch){
   try{
     info('[3] 최신 프로젝트를 GitHub에 업로드합니다.');
     git(['clone',`https://github.com/${repo}.git`,temp]);
-    const managed=['.github','docs','worker','scripts','data','design','qa','site','README.md','START_HERE.txt','ONLINE_ACCOUNT_SETUP_WINDOWS.md','SITE_METADATA.md','GITHUB_UPLOAD_GUIDE.md','PUBLISH_UPDATE.cmd','FIX_GITHUB_PAGES.cmd','DEPLOYMENT_CHECK.md','CHANGELOG-v4.1.md','CHANGELOG-v4.0.md','CHANGELOG-v3.9.md','SETUP_ONLINE.cmd','온라인계정_자동설정.cmd','LICENSE','.gitignore','.nojekyll'];
+    const managed=['.github','docs','worker','scripts','data','design','qa','site','README.md','START_HERE.txt','ONLINE_ACCOUNT_SETUP_WINDOWS.md','SITE_METADATA.md','GITHUB_UPLOAD_GUIDE.md','PUBLISH_UPDATE.cmd','FIX_GITHUB_PAGES.cmd','DEPLOYMENT_CHECK.md','CHANGELOG-v4.2.md','CHANGELOG-v4.0.md','CHANGELOG-v3.9.md','SETUP_ONLINE.cmd','온라인계정_자동설정.cmd','LICENSE','.gitignore','.nojekyll'];
     for(const name of managed) rmSync(join(temp,name),{recursive:true,force:true});
     copyProjectTree(temp);
     git(['checkout',branch],{cwd:temp,allowFailure:true});
@@ -153,7 +153,7 @@ async function main(){
   await waitRun(ri.repo);
   await verifyLive(ri.repo);
   console.log('\n============================================================');
-  console.log(' 완료: GitHub 저장소와 실제 Pages가 같은 v4.1입니다.');
+  console.log(' 완료: GitHub 저장소와 실제 Pages가 같은 v4.2입니다.');
   console.log('============================================================');
 }
 main().catch(e=>{fail(e?.message||String(e)); process.exitCode=1;});

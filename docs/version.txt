@@ -1,1 +1,1 @@
-MULLIMULLI 4.1.0 — GitHub Pages deployment repair — 2026-08-21
+MULLIMULLI 4.2.0 — cross-device accounts + incoming journey alerts — 2026-08-22

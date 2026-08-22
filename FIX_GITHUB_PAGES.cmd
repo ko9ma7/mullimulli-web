@@ -1,11 +1,11 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title Mullimulli GitHub Pages Repair v4.1
+title Mullimulli GitHub Pages Repair v4.2
 chcp 65001 >nul
 cls
 echo ============================================================
-echo  Mullimulli GitHub Pages Repair v4.1
+echo  Mullimulli GitHub Pages Repair v4.2
 echo  Cloudflare/D1 is NOT changed by this repair.
 echo ============================================================
 echo.

@@ -12,7 +12,7 @@ export default {
     if(request.method==='OPTIONS') return new Response(null,{status:204,headers:corsHeaders(corsOrigin)});
     try{
       const url=new URL(request.url), p=url.pathname.replace(/\/$/,'');
-      if(p==='/api/health'&&request.method==='GET') return json({ok:true,service:'mullimulli-api',version:'4.1.0'},200,corsOrigin);
+      if(p==='/api/health'&&request.method==='GET') return json({ok:true,service:'mullimulli-api',version:'4.2.0'},200,corsOrigin);
       if(p==='/api/signup'&&request.method==='POST') return withCors(await signup(request,env),corsOrigin);
       if(p==='/api/login'&&request.method==='POST') return withCors(await login(request,env),corsOrigin);
       const user=await authenticate(request,env);

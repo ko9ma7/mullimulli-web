@@ -16,7 +16,7 @@ const configFile = join(root, 'docs', 'config.js');
 const stateFile = join(root, '.setup-online-state.json');
 const DB_NAME = 'mullimulli-db';
 const WORKER_NAME = 'mullimulli-api';
-const VERSION = '4.1.0';
+const VERSION = '4.2.0';
 const DEFAULT_GITHUB_REPO = 'ko9ma7/mullimulli-web';
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 

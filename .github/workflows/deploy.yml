@@ -1,0 +1,61 @@
+name: Deploy GitHub Pages
+run-name: "Deploy 멀리멀리 ${{ github.sha }}"
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Pages URLs
+        env:
+          API_URL: ${{ vars.MULLIMULLI_API_BASE_URL }}
+        run: |
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          if [ -n "$API_URL" ]; then
+            python scripts/configure_site.py --owner "$OWNER" --repo "$REPO" --api "$API_URL"
+          else
+            python scripts/configure_site.py --owner "$OWNER" --repo "$REPO"
+          fi
+      - name: Sync courier catalog
+        run: python scripts/sync_couriers.py
+      - name: Validate JavaScript
+        run: |
+          node --check docs/app.js
+          node --check docs/couriers.generated.js
+          node --check worker/src/index.js
+          node --check worker/src/couriers.generated.js
+      - name: Validate required static files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          required = [
+              'docs/index.html','docs/styles.css','docs/app.js','docs/config.js','docs/couriers.generated.js',
+              'docs/404.html','docs/manifest.webmanifest','docs/version.json','docs/version.txt','data/catalog.json',
+              'docs/assets/favicon.svg','docs/assets/favicon.ico','docs/assets/favicon-16.png','docs/assets/favicon-32.png',
+              'docs/assets/og-image.png','docs/assets/repository-social-preview.png','docs/assets/icon-192.png','docs/assets/icon-512.png','docs/assets/maskable-icon-512.png'
+          ]
+          missing = [p for p in required if not Path(p).exists()]
+          if missing:
+              raise SystemExit('Missing files: ' + ', '.join(missing))
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

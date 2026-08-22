@@ -1,11 +1,13 @@
 const CONFIG = window.MULLIMULLI_CONFIG || {};
 const API_BASE = (CONFIG.apiBaseUrl || '').replace(/\/$/, '');
 const DEMO_SCALE = Math.max(1, Number(CONFIG.demoTimeAcceleration || 1));
-const BUILD_VERSION = CONFIG.buildVersion || '4.1.0';
+const BUILD_VERSION = CONFIG.buildVersion || '4.2.0';
 const STORE_KEY = 'mullimulli.demo.v2';
 const SESSION_KEY = 'mullimulli.session.v1';
 const THEME_KEY = 'mullimulli.theme.v1';
 const API_TOKEN_KEY = 'mullimulli.api.token';
+const INCOMING_SEEN_KEY = 'mullimulli.incoming.seen.v1';
+const IS_PUBLIC_SITE = location.hostname === 'ko9ma7.github.io';
 const DEMO_DATA_VERSION = 3;
 const LEGACY_SAMPLE_HANDLES = new Set(['sunnyday', 'windcloud', 'moonstar', 'happy01', 'bluewhale', 'travelerrr', 'starr_y']);
 const AVATARS = ['🦊','🐰','🐱','🐻','🦝','🐶','🐼','🐿️','🦉','🐧','🐸','🦦','🐯','🐨','🦄','🌙','⭐','🌿'];
@@ -30,7 +32,10 @@ const state = {
   authMode:'login',
   demoDistanceKm:25,
   courierExpanded:false,
-  messageDraft:''
+  messageDraft:'',
+  apiHealth:null,
+  incomingMessages:[],
+  incomingPrimed:false
 };
 
 document.body.classList.add(`theme-${state.theme}`);
@@ -310,6 +315,51 @@ async function api(path,opts={}){
   if(!res.ok) throw new Error(data.error||'요청을 처리하지 못했습니다.');
   return data;
 }
+
+async function checkApiHealth(){
+  if(!API_BASE) return null;
+  try{
+    const res=await fetch(`${API_BASE}/api/health`,{cache:'no-store'});
+    const data=await res.json().catch(()=>null);
+    if(!res.ok||!data?.ok) throw new Error('health check failed');
+    state.apiHealth=data;
+    return data;
+  }catch(e){
+    state.apiHealth={ok:false,error:e?.message||'API 연결 실패'};
+    return state.apiHealth;
+  }
+}
+function incomingTransit(messages=[]){ return messages.filter(m=>m.toId===state.me?.id && statusFor(m)==='transit'); }
+function seenIncomingIds(){ try{return new Set(JSON.parse(localStorage.getItem(INCOMING_SEEN_KEY)||'[]'));}catch{return new Set();} }
+function saveSeenIncoming(ids){ localStorage.setItem(INCOMING_SEEN_KEY,JSON.stringify([...ids].slice(-200))); }
+function notifyIncoming(messages=[]){
+  const incoming=incomingTransit(messages), seen=seenIncomingIds(), fresh=incoming.filter(m=>!seen.has(m.id));
+  state.incomingMessages=incoming;
+  if(!state.incomingPrimed){ state.incomingPrimed=true; }
+  if(fresh.length){
+    const newest=fresh[0], sender=profileDefaults(newest.from||{nickname:'누군가'}), courier=COURIERS.find(c=>c.id===newest.courierId)||COURIERS[0];
+    toast(`${sender.nickname}님이 ${courier?.name||'전달자'}로 편지를 보내고 있어요. ${remainingUntil(newest.arrivalAt)} 남았습니다.`);
+    if('Notification' in window && Notification.permission==='granted'){
+      try{new Notification('멀리멀리 — 편지가 오고 있어요',{body:`${sender.nickname}님의 편지가 여행 중입니다. ${fmtJourneyDay(newest.arrivalAt)} ${fmtJourneyClock(newest.arrivalAt)} 도착 예정`,icon:'./assets/icon-192.png',tag:`incoming-${newest.id}`});}catch{}
+    }
+  }
+  incoming.forEach(m=>seen.add(m.id)); saveSeenIncoming(seen);
+}
+async function enableBrowserNotifications(){
+  if(!('Notification' in window)) throw new Error('이 브라우저는 알림을 지원하지 않습니다.');
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted') throw new Error('브라우저 알림 권한이 허용되지 않았습니다.');
+  return true;
+}
+function apiConnectionProblem(){
+  if(!IS_PUBLIC_SITE) return false;
+  return !API_BASE || state.apiHealth?.ok===false;
+}
+function renderConnectionError(){
+  const app=document.querySelector('#app');
+  app.innerHTML=`<main class="auth-wrap"><section class="auth-card connection-error-card"><div class="auth-visual"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><h1>온라인 서버 연결이<br><span style="color:var(--danger)">필요합니다.</span></h1><p>공개 사이트에서는 로컬 계정으로 대체하지 않습니다. 그래야 다른 컴퓨터와 휴대폰에서도 같은 친구와 편지를 볼 수 있습니다.</p></div><div class="auth-form"><h2>온라인 연결을 확인해 주세요</h2><p>현재 API 주소: <code>${escapeHtml(API_BASE||'설정되지 않음')}</code></p><div class="connection-banner local"><strong>다른 기기 검색 보호</strong><span>API가 연결되지 않은 상태에서 가입하면 이 브라우저에만 계정이 생길 수 있어, 공개 사이트에서는 가입을 차단했습니다.</span></div><button class="btn btn-primary" id="retry-api" style="width:100%">다시 연결 확인</button></div></section></main>`;
+  document.querySelector('#retry-api').onclick=async()=>{await checkApiHealth(); initApp();};
+}
 async function login(handle,pin){
   if(API_BASE){
     const data=await api('/api/login',{method:'POST',body:JSON.stringify({handle,pin})});
@@ -435,7 +485,7 @@ function courierFilterBar(){
   if(!state.courierExpanded) return `<div class="courier-quickbar"><span>거리와 기다림에 맞는 추천 전달자</span><button type="button" class="text-button" id="toggle-couriers">전체 ${COURIERS.length}개 보기 →</button></div>`;
   return `<div class="courier-expanded-head"><div class="courier-filters" aria-label="거리별 전달자 필터">${DISTANCE_FILTERS.map(x=>`<button type="button" class="filter-chip ${state.courierFilter===x.id?'active':''}" data-courier-filter="${x.id}">${escapeHtml(x.label)}</button>`).join('')}</div><label class="courier-sort"><span>정렬</span><select id="courier-sort"><option value="recommended" ${state.courierSort==='recommended'?'selected':''}>추천순</option><option value="fast" ${state.courierSort==='fast'?'selected':''}>빠른 순</option><option value="slow" ${state.courierSort==='slow'?'selected':''}>느린 순</option><option value="safe" ${state.courierSort==='safe'?'selected':''}>안전한 순</option></select></label><button type="button" class="text-button" id="toggle-couriers">간단히 보기 ↑</button></div>`;
 }
-function navButton(tab,label,emoji){ return `<button data-tab="${tab}" aria-current="${state.tab===tab?'page':'false'}"><span>${emoji}</span>${label}</button>`; }
+function navButton(tab,label,emoji,count=0){ return `<button data-tab="${tab}" aria-current="${state.tab===tab?'page':'false'}"><span>${emoji}</span><span class="nav-label">${label}</span>${count>0?`<b class="nav-badge" aria-label="${count}개의 새 여정">${count>99?'99+':count}</b>`:''}</button>`; }
 function bottomButton(tab,label,emoji){return `<button data-tab="${tab}" class="${state.tab===tab?'active':''}"><span>${emoji}</span>${label}</button>`;}
 function logoSvg(){return `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M9 29 54 10 39 54 30 38 19 46l3-13Z" fill="#e7b768" stroke="#244d3b" stroke-width="3" stroke-linejoin="round"/><path d="m22 33 23-14-15 19" fill="none" stroke="#244d3b" stroke-width="3" stroke-linecap="round"/></svg>`;}
 
@@ -463,9 +513,10 @@ async function render(){
     if(!rp || rp.friendId!==state.selectedFriend.id || staleError) await loadRoutePreview(state.selectedFriend);
   }
   const sent=messages.filter(m=>m.fromId===state.me.id), inbox=messages.filter(m=>m.toId===state.me.id);
+  notifyIncoming(messages);
   const stats={delivered:messages.filter(m=>statusFor(m)==='delivered').length,transit:messages.filter(m=>statusFor(m)==='transit').length,failed:messages.filter(m=>statusFor(m)==='failed').length};
   const hero=state.tab==='send'?`<section class="hero"><div class="hero-copy"><h1>느리게, 멀리, <span>마음을 전하세요.</span></h1><p>전달자를 고르면 메시지는 발송 순간의 두 사람 마지막 위치를 기준으로 여행을 시작합니다. 도착할 때까지 기다림도 편지의 일부가 됩니다.</p></div><div class="hero-art"><div class="flight-scene"><img class="hero-bird-img" src="./assets/hero-bird.png" alt="편지를 나르는 비둘기 일러스트" loading="eager" /><div class="route-line"></div><div class="paper two">🦋</div></div></div></section>`:'';
-  document.querySelector('#app').innerHTML=`<div class="app-shell"><header class="topbar"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><nav class="nav" aria-label="주요 메뉴">${navButton('send','보내기','✈️')}${navButton('journeys','여정','🧭')}${navButton('inbox','받은편지','📬')}${navButton('friends','친구','👥')}${navButton('about','설명','📘')}</nav><span class="connection-chip ${API_BASE?'is-online':'is-local'}">${API_BASE?'● 온라인':'○ 로컬'}</span><button class="profile-chip" id="profile-menu"><span class="avatar">${state.me.avatar||'🙂'}</span><span class="profile-text"><strong>${escapeHtml(state.me.nickname)}</strong><small style="display:block;color:var(--muted)">@${escapeHtml(state.me.handle)}</small></span><span class="status-dot" aria-label="접속 중"></span></button></header><main id="main" class="main tab-${state.tab}"><div class="layout"><div class="dashboard-main">${hero}<div class="content-stack">${state.tab==='send'?sendPanel(friends,sent):state.tab==='journeys'?journeysPanel(sent):state.tab==='inbox'?inboxPanel(inbox):state.tab==='friends'?friendsPanel(friends):aboutPanel()}</div></div><aside class="side-stack">${profilePanel()}${friendsMini(friends)}${statsPanel(stats)}</aside></div><footer class="site-footer"><span>${logoSvg()} 멀리멀리</span><span>v${escapeHtml(BUILD_VERSION)} · 거리와 기다림이 편지가 되는 서비스</span></footer></main><nav class="bottom-nav" aria-label="모바일 메뉴">${bottomButton('send','보내기','✈️')}${bottomButton('journeys','여정','🧭')}${bottomButton('inbox','받기','📬')}${bottomButton('friends','친구','👥')}${bottomButton('about','설명','📘')}</nav></div>`;
+  document.querySelector('#app').innerHTML=`<div class="app-shell"><header class="topbar"><div class="brand">${logoSvg()}<span>멀리멀리</span></div><nav class="nav" aria-label="주요 메뉴">${navButton('send','보내기','✈️')}${navButton('journeys','여정','🧭')}${navButton('inbox','받은편지','📬',inbox.filter(m=>statusFor(m)==='transit').length)}${navButton('friends','친구','👥')}${navButton('about','설명','📘')}</nav><span class="connection-chip ${API_BASE?'is-online':'is-local'}">${API_BASE?'● 온라인':'○ 로컬'}</span><button class="profile-chip" id="profile-menu"><span class="avatar">${state.me.avatar||'🙂'}</span><span class="profile-text"><strong>${escapeHtml(state.me.nickname)}</strong><small style="display:block;color:var(--muted)">@${escapeHtml(state.me.handle)}</small></span><span class="status-dot" aria-label="접속 중"></span></button></header><main id="main" class="main tab-${state.tab}"><div class="layout"><div class="dashboard-main">${hero}<div class="content-stack">${state.tab!=='inbox'?incomingJourneyBanner(inbox):''}${state.tab==='send'?sendPanel(friends,sent):state.tab==='journeys'?journeysPanel(sent):state.tab==='inbox'?inboxPanel(inbox):state.tab==='friends'?friendsPanel(friends):aboutPanel()}</div></div><aside class="side-stack">${profilePanel()}${friendsMini(friends)}${statsPanel(stats)}</aside></div><footer class="site-footer"><span>${logoSvg()} 멀리멀리</span><span>v${escapeHtml(BUILD_VERSION)} · 거리와 기다림이 편지가 되는 서비스</span></footer></main><nav class="bottom-nav" aria-label="모바일 메뉴">${bottomButton('send','보내기','✈️')}${bottomButton('journeys','여정','🧭')}${bottomButton('inbox','받기','📬')}${bottomButton('friends','친구','👥')}${bottomButton('about','설명','📘')}</nav></div>`;
   bindMain(friends);
 }
 function sendPanel(friends,messages=[]){
@@ -490,11 +541,20 @@ function locationAgeText(user){ return user.showLocationAge===false?'위치 시�
 function friendChoice(x,selected){
   return `<button type="button" class="friend-row" data-select-friend="${x.id}" aria-pressed="${selected}"><span class="friend-main"><span class="avatar">${x.avatar||'🙂'}</span><span><strong>${escapeHtml(x.nickname)}${x.system?' <em class="system-tag">SYSTEM</em>':''}</strong><small>@${escapeHtml(x.handle)} · ${x.system?'테스트 계정':locationAgeText(x)}</small></span></span><span>${selected?'✓':'→'}</span></button>`;
 }
+
+function incomingJourneyBanner(messages){
+  const incoming=incomingTransit(messages);
+  if(!incoming.length) return '';
+  const soonest=[...incoming].sort((a,b)=>asTimestamp(a.arrivalAt)-asTimestamp(b.arrivalAt))[0];
+  const sender=profileDefaults(soonest.from||{nickname:'누군가',handle:'friend',avatar:'📨'}), c=COURIERS.find(x=>x.id===soonest.courierId)||COURIERS[0];
+  return `<section class="incoming-banner" aria-live="polite"><div class="incoming-icon">${c.emoji}</div><div class="incoming-copy"><span class="eyebrow">나에게 오는 편지 ${incoming.length}통</span><h3>${escapeHtml(sender.nickname)}님의 편지가 여행 중이에요.</h3><p>내용은 아직 잠겨 있습니다. <strong>${dDayLabel(soonest.arrivalAt)}</strong> · ${remainingUntil(soonest.arrivalAt)} 남음 · ${fmtJourneyDay(soonest.arrivalAt)} ${fmtJourneyClock(soonest.arrivalAt)} 도착 예정</p></div><div class="incoming-actions"><button class="btn btn-secondary" data-tab="inbox">오는 편지 보기</button>${'Notification' in window&&Notification.permission!=='granted'?'<button class="btn btn-secondary" id="enable-notifications">🔔 알림 켜기</button>':''}</div></section>`;
+}
 function journeysPanel(messages){
   return `<section class="panel"><div class="panel-head"><div><span class="eyebrow">보낸 편지</span><h2>현재 진행 중인 여정</h2><p class="panel-sub">D-Day, 남은 시간, 정확한 도착 예정일을 한눈에 확인할 수 있습니다.</p></div><span class="hint">취소 기능은 제공되지 않습니다.</span></div><div class="journey-list journey-list-rich">${messages.length?messages.map(m=>journeyCard(m,true,false)).join(''):`<div class="empty"><div class="big">🧭</div><strong>아직 떠난 편지가 없어요.</strong><p>첫 메시지를 보내면 이곳에서 이동 과정을 볼 수 있습니다.</p></div>`}</div></section>`;
 }
 function inboxPanel(messages){
-  return `<section class="panel"><div class="panel-head"><div><span class="eyebrow">받은 편지</span><h2>나에게 오고 있는 메시지</h2><p class="panel-sub">도착 전에는 본문이 잠기며, 예정일과 남은 시간만 확인할 수 있습니다.</p></div></div><div class="journey-list journey-list-rich">${messages.length?messages.map(m=>journeyCard(m,false,false)).join(''):`<div class="empty"><div class="big">📬</div><strong>아직 받은 편지가 없어요.</strong><p>친구가 보낸 편지가 도착하면 여기에서 열 수 있습니다.</p></div>`}</div></section>`;
+  const incoming=messages.filter(m=>statusFor(m)==='transit');
+  return `<section class="panel"><div class="panel-head"><div><span class="eyebrow">받은 편지</span><h2>${incoming.length?`📨 ${incoming.length}통이 나에게 오는 중`:'나에게 오는 편지'}</h2><p class="panel-sub">보낸 사람과 전달자, 도착 예정 시간은 바로 보이지만 본문은 도착할 때까지 잠겨 있습니다.</p></div>${incoming.length&&'Notification' in window&&Notification.permission!=='granted'?'<button class="btn btn-secondary" id="enable-notifications">🔔 알림 켜기</button>':''}</div><div class="journey-list journey-list-rich">${messages.length?messages.map(m=>journeyCard(m,false,false)).join(''):`<div class="empty"><div class="big">📬</div><strong>아직 오는 편지가 없어요.</strong><p>친구가 편지를 출발시키는 순간 이곳에 잠긴 여정이 나타납니다.</p></div>`}</div></section>`;
 }
 function journeyCard(m,isSender,compact=false){
   const c=COURIERS.find(x=>x.id===m.courierId)||COURIERS[0], status=statusFor(m), other=profileDefaults((isSender?m.to:m.from)||userById(isSender?m.toId:m.fromId)||{nickname:'친구',handle:'friend',avatar:'🙂'});
@@ -574,6 +634,7 @@ function bindMain(friends){
   }
   bindDirectoryActions(document,friends);
   const loc=document.querySelector('#update-location'); if(loc)loc.onclick=async()=>{loc.disabled=true;loc.textContent='확인 중…';try{await updateLocation();toast('마지막 위치를 업데이트했습니다.');render();}catch(e){toast(`위치를 저장하지 못했습니다: ${e.message||'권한을 확인해 주세요.'}`);loc.disabled=false;loc.textContent='위치 업데이트';}};
+  document.querySelectorAll('#enable-notifications').forEach(b=>b.onclick=async()=>{try{await enableBrowserNotifications();toast('브라우저 알림을 켰습니다. 페이지가 열려 있을 때 새 편지를 알려드릴게요.');render();}catch(e){toast(e.message);}});
   const theme=document.querySelector('#theme-toggle'); if(theme)theme.onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
   const out=document.querySelector('#logout'); if(out)out.onclick=logout;
   const profile=document.querySelector('#profile-menu'); if(profile)profile.onclick=openProfileSettingsModal;
@@ -609,12 +670,21 @@ function openPublicProfileModal(user,isFriend){
   wrap.innerHTML=`<section class="modal public-profile-modal" role="dialog" aria-modal="true"><div class="modal-head"><div></div><button class="icon-close" data-close aria-label="닫기">×</button></div><div class="public-profile-hero"><span class="avatar public-avatar">${user.avatar||'🙂'}</span><h3>${escapeHtml(user.nickname)}</h3><p class="public-handle">@${escapeHtml(user.handle)}</p>${user.bio?`<p class="public-bio">${escapeHtml(user.bio)}</p>`:'<p class="public-bio muted-copy">소개가 없습니다.</p>'}</div><div class="public-profile-facts"><div><span>친구 상태</span><strong>${isFriend?'서로 친구':'아직 친구 아님'}</strong></div><div><span>위치 정보</span><strong>${user.showLocationAge===false?'업데이트 시각 비공개':user.updatedAt?fmtAgo(user.updatedAt):'업데이트 없음'}</strong></div></div><div class="modal-actions"><button class="btn btn-secondary" data-close>닫기</button>${isFriend?`<button class="btn btn-primary" data-send-to="${user.id}">편지 보내기</button>`:''}</div></section>`;
   document.body.append(wrap); const close=()=>wrap.remove(); wrap.querySelectorAll('[data-close]').forEach(b=>b.onclick=close); wrap.onclick=e=>{if(e.target===wrap)close();}; const send=wrap.querySelector('[data-send-to]'); if(send)send.onclick=()=>{state.selectedFriend=user;state.routePreview=null;state.tab='send';close();render();};
 }
-function startRefresh(){ clearInterval(state.refreshTimer); state.refreshTimer=setInterval(()=>{if(state.me && ['journeys','inbox'].includes(state.tab))render();},1000); }
-
-(async function init(){
+function startRefresh(){
+  clearInterval(state.refreshTimer);
+  // Every tab stays aware of incoming letters. This is intentionally slower than the countdown UI to avoid needless API load.
+  state.refreshTimer=setInterval(async()=>{
+    if(!state.me) return;
+    try{ await render(); }catch{}
+  },10000);
+}
+async function initApp(){
+  if(API_BASE) await checkApiHealth();
+  if(apiConnectionProblem()){ renderConnectionError(); return; }
   if(API_BASE){
-    try{ const token=localStorage.getItem(API_TOKEN_KEY); if(token) state.me=profileDefaults((await api('/api/me')).user); }catch{ localStorage.removeItem(API_TOKEN_KEY); }
+    try{ const token=localStorage.getItem(API_TOKEN_KEY); if(token) state.me=profileDefaults((await api('/api/me')).user); }catch{ localStorage.removeItem(API_TOKEN_KEY);state.me=null; }
   }else state.me=demoMe();
   if(state.me){ try{const friends=await getFriends();state.selectedFriend=friends[0]||(!API_BASE?demoAdmin():null);}catch{} startRefresh(); }
   render();
-})();
+}
+initApp();

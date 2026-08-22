@@ -1,0 +1,19 @@
+{
+  "version": "4.2.0",
+  "checks": {
+    "javascript_syntax": "pass",
+    "worker_syntax": "pass",
+    "desktop_mock_api_flow": "pass",
+    "mobile_mock_api_flow": "pass",
+    "incoming_banner": "pass",
+    "incoming_nav_badge": "pass",
+    "arrival_dday_visible": "pass",
+    "production_api_configured": true,
+    "production_local_fallback_blocked": true
+  },
+  "browser_verification": "Playwright with system Chromium and mocked API via script injection. Direct localhost/file navigation was blocked by the environment administrator, so screenshots were produced with a set-content fallback.",
+  "notes": [
+    "Hero image is not resolved in the fallback screenshot because the fallback does not have a normal document URL; the deployed site uses the existing docs/assets/hero-bird.png path.",
+    "Cross-device behavior itself requires deployment to the real Cloudflare Worker/D1 and cannot be proven against the user's live account from this isolated build environment."
+  ]
+}
